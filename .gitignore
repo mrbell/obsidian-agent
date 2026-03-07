@@ -1,10 +1,36 @@
-# Python-generated files
+# Python
 __pycache__/
 *.py[oc]
 build/
 dist/
 wheels/
 *.egg-info
+.python-version
 
 # Virtual environments
 .venv
+
+# Config (use config/config.yaml.example as template; never commit real config)
+config/config.yaml
+
+# State and runtime
+*.duckdb
+*.duckdb.wal
+agent_workdir/
+
+# Outbox (staging; not committed)
+outbox/
+
+# Logs
+logs/
+
+# Tests
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Editor
+.DS_Store
+*.swp
+.idea/
+.vscode/

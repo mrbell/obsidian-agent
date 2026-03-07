@@ -1,0 +1,42 @@
+paths:
+  vault: ~/ObsidianVault               # real vault path; read-only to jobs
+  outbox: ~/.local/share/obsidian-agent/outbox
+  state_dir: ~/.local/share/obsidian-agent
+  bot_inbox_rel: BotInbox              # relative path inside vault; must not be absolute
+
+cache:
+  duckdb_path: ~/.local/share/obsidian-agent/index.duckdb
+
+delivery:
+  email:
+    smtp_host: smtp.gmail.com
+    smtp_port: 587
+    username: you@gmail.com
+    password_env: OBSIDIAN_AGENT_SMTP_PASSWORD   # export this in your shell or systemd unit
+    from_address: you@gmail.com
+    to_address: you@gmail.com
+
+agent:
+  command: claude
+  args: ["--print"]
+  timeout_seconds: 300
+  work_dir: ~/.local/share/obsidian-agent/agent_workdir
+
+jobs:
+  task_notification:
+    enabled: true
+    schedule: "0 7 * * *"             # informational; enforced by cron/systemd
+    lookahead_days: 3
+    include_overdue: true
+    notify_if_empty: false
+    also_write_vault_artifact: false
+
+  research_digest:
+    enabled: true
+    schedule: "0 18 * * 0"            # Sunday 18:00
+    lookback_days: 7
+    topics:
+      - "agentic coding"
+      - "large language models"
+      - "personal knowledge management"
+    also_notify: true
