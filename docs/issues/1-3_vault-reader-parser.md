@@ -1,6 +1,6 @@
 # 1-3 — Vault Reader and Parser
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 1
 **Children**: —
 **Depends on**: —
