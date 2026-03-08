@@ -173,6 +173,19 @@ class TestWebSearch:
         assert "WebSearch" in args
         assert "WebFetch" in args
 
+    def test_prompt_not_consumed_by_disallowed_tools(self, tmp_path: Path) -> None:
+        # Regression: --disallowed-tools is variadic; without -- separator the
+        # prompt was consumed as a tool name, leaving no prompt argument.
+        worker = _make_worker(
+            tmp_path,
+            sys.executable,
+            ["-c", "import sys, json; print(json.dumps(sys.argv[1:]))"],
+        )
+        result = worker.run("my actual prompt", web_search=False, with_mcp=False)
+        args = json.loads(result.output)
+        assert "my actual prompt" in args
+        assert args[-1] == "my actual prompt"
+
     def test_web_search_true_no_disallowed_tools(self, tmp_path: Path) -> None:
         worker = _make_worker(
             tmp_path,

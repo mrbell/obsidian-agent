@@ -73,8 +73,9 @@ class ClaudeCodeWorker:
             if not web_search:
                 cmd += ["--disallowed-tools", "WebSearch", "WebFetch"]
 
-            # Prompt as positional argument
-            cmd.append(prompt)
+            # Terminate option parsing before the prompt so variadic flags
+            # (e.g. --disallowed-tools <tools...>) don't consume it.
+            cmd += ["--", prompt]
 
             log.info(
                 "Running worker. command=%s web_search=%s with_mcp=%s",
