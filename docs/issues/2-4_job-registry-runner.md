@@ -1,6 +1,6 @@
 # 2-4 — Job Registry and Runner
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 2
 **Children**: —
 **Depends on**: 1-1, 1-4, 2-1

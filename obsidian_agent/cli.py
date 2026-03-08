@@ -9,6 +9,7 @@ from obsidian_agent.config import ConfigError, load_config
 from obsidian_agent.index.build_index import build_index
 from obsidian_agent.index.store import IndexStore
 from obsidian_agent.logging_utils import setup_logging
+import obsidian_agent.jobs  # noqa: F401 — triggers job self-registration
 
 app = typer.Typer(add_completion=False)
 console = Console()
@@ -146,3 +147,77 @@ def status(
     else:
         console.print(f"  Pending artifacts: {pending}")
     console.print()
+
+
+# ---------------------------------------------------------------------------
+# run
+# ---------------------------------------------------------------------------
+
+@app.command()
+def run(
+    job_name: str = typer.Argument(..., help="Name of the job to run"),
+    config: Path = typer.Option(
+        _DEFAULT_CONFIG, "--config", "-c", help="Path to config.yaml"
+    ),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable debug logging"),
+) -> None:
+    """Run a named job."""
+    import logging
+    from datetime import date
+
+    from obsidian_agent.context import JobContext
+    from obsidian_agent.delivery.base import DeliveryError
+    from obsidian_agent.delivery.smtp import SmtpDelivery
+    from obsidian_agent.jobs.registry import get_job
+    from obsidian_agent.outputs import Notification, VaultArtifact
+
+    cfg = _load(config, verbose)
+    log = logging.getLogger(__name__)
+
+    try:
+        job_fn = get_job(job_name)
+    except KeyError as exc:
+        console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(1)
+
+    delivery = None
+    if cfg.delivery.email:
+        try:
+            delivery = SmtpDelivery(cfg.delivery.email)
+        except DeliveryError as exc:
+            console.print(f"[bold red]Delivery config error:[/bold red] {exc}")
+            raise typer.Exit(1)
+
+    cfg.paths.state_dir.mkdir(parents=True, exist_ok=True)
+    cfg.paths.outbox.mkdir(parents=True, exist_ok=True)
+
+    with IndexStore(cfg.cache.duckdb_path) as store:
+        ctx = JobContext(
+            store=store,
+            config=cfg,
+            today=date.today(),
+            delivery=delivery,
+            logger=log,
+        )
+
+        log.info("Running job: %s", job_name)
+        outputs = job_fn(ctx)
+        log.info("Job %s produced %d output(s)", job_name, len(outputs))
+
+    for output in outputs:
+        if isinstance(output, VaultArtifact):
+            dest = output.write_to_outbox(cfg.paths.outbox)
+            log.info("Artifact written: %s", dest)
+            console.print(f"Artifact: [cyan]{dest}[/cyan]")
+        elif isinstance(output, Notification):
+            if delivery is None:
+                log.warning("No delivery configured; skipping: %s", output.subject)
+                console.print(
+                    f"[yellow]No delivery configured — skipping:[/yellow] {output.subject}"
+                )
+            else:
+                delivery.send(output.subject, output.body)
+                log.info("Notification sent: %s", output.subject)
+                console.print(f"Sent: [green]{output.subject}[/green]")
+
+    console.print(f"[bold]Done:[/bold] {job_name}  {len(outputs)} output(s)")

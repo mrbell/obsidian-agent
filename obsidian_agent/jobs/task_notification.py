@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from obsidian_agent.context import JobContext
+from obsidian_agent.jobs.registry import register
 from obsidian_agent.outputs import JobOutput, Notification, VaultArtifact
 
 # Row tuple indices from the query
@@ -13,6 +14,7 @@ _COL_DUE = 2
 _Task = tuple[str, str, date]  # (note_relpath, text, due_date)
 
 
+@register("task_notification")
 def run(ctx: JobContext) -> list[JobOutput]:
     """Query the index for due/overdue tasks and return notification outputs."""
     cfg = ctx.config.jobs.task_notification
