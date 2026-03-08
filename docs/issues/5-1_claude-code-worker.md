@@ -1,6 +1,6 @@
 # 5-1 — Claude Code Worker
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 5
 **Children**: —
 **Depends on**: 4-4
