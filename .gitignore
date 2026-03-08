@@ -34,3 +34,5 @@ htmlcov/
 *.swp
 .idea/
 .vscode/
+
+.env
