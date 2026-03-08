@@ -1,6 +1,6 @@
 # 2-3 — Task Notification Job
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 2
 **Children**: —
 **Depends on**: 1-5, 2-1, 2-2
