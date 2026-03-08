@@ -153,6 +153,56 @@ def status(
 # run
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# promote
+# ---------------------------------------------------------------------------
+
+@app.command()
+def promote(
+    config: Path = typer.Option(
+        _DEFAULT_CONFIG, "--config", "-c", help="Path to config.yaml"
+    ),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable debug logging"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be promoted without copying"),
+) -> None:
+    """Promote outbox artifacts into the vault BotInbox."""
+    import logging
+    from obsidian_agent.promote.promoter import promote as run_promote
+
+    cfg = _load(config, verbose)
+    log = logging.getLogger(__name__)
+
+    if dry_run:
+        console.print("[yellow][dry-run][/yellow] No files will be copied.")
+
+    result = run_promote(
+        cfg.paths.outbox,
+        cfg.paths.vault,
+        cfg.paths.bot_inbox_rel,
+        dry_run=dry_run,
+    )
+
+    prefix = "[yellow][dry-run][/yellow] " if dry_run else ""
+    console.print(
+        f"{prefix}[bold]Promote complete[/bold]  "
+        f"promoted [green]{result.promoted}[/green]  "
+        f"skipped [yellow]{result.skipped}[/yellow]  "
+        f"errors [red]{result.errors}[/red]"
+    )
+
+    log.info(
+        "Promote complete. promoted=%d skipped=%d errors=%d dry_run=%s",
+        result.promoted, result.skipped, result.errors, dry_run,
+    )
+
+    if result.errors:
+        raise typer.Exit(1)
+
+
+# ---------------------------------------------------------------------------
+# run
+# ---------------------------------------------------------------------------
+
 @app.command()
 def run(
     job_name: str = typer.Argument(..., help="Name of the job to run"),

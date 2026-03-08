@@ -1,6 +1,6 @@
 # 3-2 — CLI: promote Command
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 3
 **Children**: —
 **Depends on**: 1-6, 3-1

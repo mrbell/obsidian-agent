@@ -1,6 +1,6 @@
 # 3 — Promoter
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: —
 **Children**: 3-1, 3-2
 **Depends on**: 1
