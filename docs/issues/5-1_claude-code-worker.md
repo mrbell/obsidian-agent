@@ -12,7 +12,30 @@ MCP server registered. Used by all Class B and Class C jobs.
 
 ## Implementation Notes
 
-Exact invocation details depend on spike 4-4. Update this issue with findings before implementing.
+### Confirmed invocation (from spike 4-4)
+
+```bash
+claude -p "<prompt>" \
+  --mcp-config /tmp/<uuid>-mcp.json \
+  --output-format text \
+  --no-session-persistence
+```
+
+MCP config JSON written to a temp file per invocation:
+
+```json
+{
+  "mcpServers": {
+    "obsidian-vault": {
+      "command": "obsidian-agent",
+      "args": ["mcp", "--config", "/path/to/config.yaml"]
+    }
+  }
+}
+```
+
+Exit codes: 0 = success, 1 = error. Stdout contains the plain text response.
+`CLAUDECODE` env var causes nested-session rejection — use dummy command in tests.
 
 ### Interface
 

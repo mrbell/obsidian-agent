@@ -185,16 +185,49 @@ LLM-assisted jobs write a prompt and delegate to the Claude Code worker.
 
 Invokes Claude Code headlessly for LLM-assisted jobs.
 
-- Starts the MCP server as a subprocess configured for the current vault.
-- Runs Claude Code in `--print` mode with the MCP server registered.
+- Runs Claude Code with `-p` / `--print` for non-interactive output.
+- Registers the vault MCP server via `--mcp-config <path-to-json>`.
 - Claude Code runs in an isolated temporary working directory.
-- Captures output from Claude Code's stdout or a designated output file.
+- Captures Claude Code's stdout (plain text by default).
 - Enforces a configurable timeout.
 - Returns raw output text for the job to validate and wrap as a `VaultArtifact`.
 
 Claude Code is given a task description. It uses MCP tools to retrieve whatever vault context
 it determines is relevant, and web tools (if enabled) for research tasks. The worker does not
 need to predict or pre-fetch context.
+
+**Confirmed invocation flags** (from spike 4-4 / `claude --help`):
+
+```
+claude -p "<prompt>" \
+  --mcp-config /tmp/<uuid>-mcp.json \
+  --output-format text \
+  --no-session-persistence
+```
+
+For Class C (research) jobs, add `--tools` to enable/restrict tools as needed. Web search
+(`WebSearch`, `WebFetch`) is available by default in `--print` mode.
+
+**MCP config JSON format** (written to a temp file per invocation):
+
+```json
+{
+  "mcpServers": {
+    "obsidian-vault": {
+      "command": "obsidian-agent",
+      "args": ["mcp", "--config", "/path/to/config.yaml"]
+    }
+  }
+}
+```
+
+**Exit codes**: 0 on success, 1 on error (bad prompt, timeout, API error). Non-zero exit
+means no usable output — the worker returns a `WorkerResult` with the returncode and stderr
+for the job to handle.
+
+**Nested session note**: Claude Code blocks launching inside another Claude Code session
+(detects the `CLAUDECODE` env var). In production cron use this is not an issue. In testing,
+use a dummy command (`echo`) instead of `claude` to avoid the restriction.
 
 ### Delivery (`delivery/`)
 

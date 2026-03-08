@@ -1,6 +1,6 @@
 # 4 — MCP Server
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: —
 **Children**: 4-1, 4-2, 4-3, 4-4
 **Depends on**: 1

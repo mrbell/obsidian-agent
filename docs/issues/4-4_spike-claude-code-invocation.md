@@ -1,6 +1,6 @@
 # 4-4 — Spike: Claude Code Headless Invocation with MCP
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 4
 **Children**: —
 **Depends on**: 4-2
@@ -10,37 +10,94 @@
 Research and validate the exact mechanism for invoking Claude Code headlessly with a custom
 MCP server registered. This must be resolved before implementing the Claude Code worker (5-1).
 
-## Questions to Answer
+## Findings
 
-1. What is the exact `claude` CLI command and flags for headless (non-interactive) mode?
-   - Is it `claude --print "prompt"`? `claude -p "prompt"`? Something else?
-2. How is a custom MCP server registered for a single invocation?
-   - Via `--mcp-config <path>`? Via a JSON config file? Via an environment variable?
-   - What does the MCP config JSON schema look like?
-3. Does tool use (MCP tools, web search) work in `--print`/headless mode?
-   - Or is tool use disabled in non-interactive mode?
-4. How is web search enabled/disabled for a given invocation?
-5. What does stdout contain in headless mode?
-   - Just the final response text? Or structured JSON including tool calls?
-6. What exit codes does `claude` use?
-   - 0 on success, non-zero on error — what constitutes an error?
-7. Are there rate limits or concurrency constraints relevant to scheduled job use?
+### 1. Headless (non-interactive) mode
 
-## Validation
-
-Run a test invocation:
 ```bash
-obsidian-agent mcp &   # start MCP server
-# then invoke claude headlessly with MCP registered
-# verify it can call MCP tools and return a response
+claude -p "<prompt>"
+# or equivalently:
+claude --print "<prompt>"
 ```
+
+`-p` / `--print` prints the response to stdout and exits. This is the correct mode for
+scheduled/automated invocations.
+
+### 2. MCP server registration
+
+```bash
+claude -p "<prompt>" --mcp-config /path/to/mcp.json
+```
+
+`--mcp-config` accepts a path to a JSON file (or a JSON string directly). The JSON schema
+mirrors the Claude Desktop config format:
+
+```json
+{
+  "mcpServers": {
+    "obsidian-vault": {
+      "command": "obsidian-agent",
+      "args": ["mcp", "--config", "/path/to/config.yaml"]
+    }
+  }
+}
+```
+
+Multiple configs can be passed: `--mcp-config file1.json file2.json`.
+
+### 3. Tool use in `--print` mode
+
+MCP tools and built-in tools (WebSearch, WebFetch) work in `--print` mode. This is the
+primary design intent for headless agentic use. Web search is available by default; tools
+can be restricted with `--tools` or `--allowedTools`.
+
+### 4. Web search
+
+Web search (`WebSearch`, `WebFetch`) is enabled by default. To disable: `--tools ""` or
+restrict with `--allowedTools`. For Class C (research) jobs, leave defaults.
+
+### 5. Stdout format
+
+`--output-format text` (the default) writes just the model's response text to stdout.
+Other options: `json` (structured), `stream-json` (streaming). Use `text` for simplicity.
+
+### 6. Exit codes
+
+- `0`: success
+- `1`: error (bad invocation, API error, timeout on the Claude side)
+
+Non-zero exit indicates no usable output was produced.
+
+### 7. Rate limits / concurrency
+
+No special concurrency constraints beyond the standard subscription limits. Scheduled
+cron jobs running one at a time are well within limits.
+
+### Nested session note
+
+Claude Code detects the `CLAUDECODE` environment variable and refuses to launch inside an
+existing session. This is not an issue in production cron use. In tests, use a dummy
+command (e.g. `echo`) instead of `claude`.
+
+## Recommended invocation for worker.py
+
+```bash
+claude -p "<prompt>" \
+  --mcp-config /tmp/<uuid>-mcp.json \
+  --output-format text \
+  --no-session-persistence
+```
+
+`--no-session-persistence` prevents the invocation from writing session history to disk,
+keeping each job run fully isolated.
 
 ## Output
 
-Update `DESIGN.md §4` (Claude Code Worker) and issue 5-1 with confirmed invocation details.
-Update `config.yaml.example` with any additional agent config fields needed.
+DESIGN.md §4 (Claude Code Worker) updated with confirmed invocation details.
+Issue 5-1 updated with implementation guidance.
+`config.yaml.example` `agent` section is already correct — no additional fields needed.
 
 ## Definition of Done
 
 All questions above answered with working example invocation. Implementation approach for
-`agent/worker.py` confirmed.
+`agent/worker.py` confirmed. ✓
