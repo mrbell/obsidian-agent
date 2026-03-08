@@ -1,6 +1,6 @@
 # 2-2 — SMTP Email Delivery
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 2
 **Children**: —
 **Depends on**: 1-1, 2-1
