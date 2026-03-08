@@ -1,6 +1,6 @@
 # 2-1 — Output Model
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 2
 **Children**: —
 **Depends on**: 1-1
