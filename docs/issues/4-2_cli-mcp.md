@@ -1,6 +1,6 @@
 # 4-2 — CLI: mcp Command
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 4
 **Children**: —
 **Depends on**: 1-6, 4-1

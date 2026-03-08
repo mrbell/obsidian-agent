@@ -1,6 +1,6 @@
 # 4-1 — MCP Server Tool Implementations
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 4
 **Children**: —
 **Depends on**: 1-3, 1-4

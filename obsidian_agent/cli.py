@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import typer
@@ -15,11 +16,23 @@ app = typer.Typer(add_completion=False)
 console = Console()
 
 _DEFAULT_CONFIG = Path("~/.config/obsidian-agent/config.yaml")
+_CONFIG_ENV_VAR = "OBSIDIAN_AGENT_CONFIG"
+
+
+def _resolve_config_path(config_path: Path) -> Path:
+    """Return config path from CLI arg, env var fallback, or default."""
+    if str(config_path) != str(_DEFAULT_CONFIG):
+        # Explicitly provided via --config flag
+        return config_path.expanduser().resolve()
+    env_val = os.environ.get(_CONFIG_ENV_VAR)
+    if env_val:
+        return Path(env_val).expanduser().resolve()
+    return config_path.expanduser().resolve()
 
 
 def _load(config_path: Path, verbose: bool):
     """Expand path, load config, set up logging. Exits on error."""
-    config_path = config_path.expanduser().resolve()
+    config_path = _resolve_config_path(config_path)
     try:
         cfg = load_config(config_path)
     except ConfigError as exc:
@@ -197,6 +210,24 @@ def promote(
 
     if result.errors:
         raise typer.Exit(1)
+
+
+# ---------------------------------------------------------------------------
+# mcp
+# ---------------------------------------------------------------------------
+
+@app.command()
+def mcp(
+    config: Path = typer.Option(
+        _DEFAULT_CONFIG, "--config", "-c", help="Path to config.yaml"
+    ),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable debug logging"),
+) -> None:
+    """Start the MCP server on stdio (used by Claude Code worker and Claude Desktop)."""
+    from obsidian_agent.mcp.server import run_server
+
+    cfg = _load(config, verbose)
+    run_server(cfg.paths.vault, cfg.cache.duckdb_path)
 
 
 # ---------------------------------------------------------------------------
