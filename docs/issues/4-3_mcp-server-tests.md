@@ -1,6 +1,6 @@
 # 4-3 — MCP Server Integration Tests
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 4
 **Children**: —
 **Depends on**: 4-1, 4-2
