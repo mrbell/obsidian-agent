@@ -1,6 +1,6 @@
 # 1-2 — Logging Setup
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 1
 **Children**: —
 **Depends on**: 1-1
