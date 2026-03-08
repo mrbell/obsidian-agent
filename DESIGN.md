@@ -110,7 +110,7 @@ privacy terms. Research jobs may fetch external content.
       +----+-----+
            |
            v
-  Vault/BotInbox/YYYY/MM/<job>/
+  Vault/BotInbox/<job>/
 ```
 
 For deterministic (no-LLM) jobs, the Claude Code Worker and MCP Server are not involved. The
@@ -224,7 +224,7 @@ The promoter copies files from the outbox into the vault's BotInbox directory, e
 Destination structure:
 
 ```
-BotInbox/YYYY/MM/<job>/<artifact-filename>.md
+BotInbox/<job>/<artifact-filename>.md
 ```
 
 ---

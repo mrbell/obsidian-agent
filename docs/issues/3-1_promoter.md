@@ -1,6 +1,6 @@
 # 3-1 — Promoter Implementation
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 3
 **Children**: —
 **Depends on**: 1-1, 2-1
@@ -8,7 +8,7 @@
 ## Description
 
 Implement `obsidian_agent/promote/promoter.py`. Scans the outbox and copies eligible
-artifacts into `vault/BotInbox/YYYY/MM/<job>/` with strict safety enforcement.
+artifacts into `vault/BotInbox/<job>/` with strict safety enforcement.
 
 ## Implementation Notes
 
@@ -26,8 +26,8 @@ def promote(outbox_root: Path, vault_path: Path, bot_inbox_rel: str) -> PromoteR
 
 1. Reject if not `.md` extension
 2. Reject if symlink
-3. Compute destination: `vault / bot_inbox_rel / YYYY / MM / relative_outbox_path`
-   - YYYY/MM derived from today's date (promotion date)
+3. Compute destination: `vault / bot_inbox_rel / relative_outbox_path`
+   - `relative_outbox_path` preserves the `<job>/<filename>` structure from the outbox
 4. Resolve destination and verify it is inside `vault / bot_inbox_rel` (path traversal check)
 5. Skip if destination already exists (log as skipped)
 6. Create destination parent directories
