@@ -1,6 +1,6 @@
 # 1-1 — Config Loading and Validation
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 1
 **Children**: —
 **Depends on**: —
