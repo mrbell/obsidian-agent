@@ -1,6 +1,6 @@
 # 5 — Research Digest
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: —
 **Children**: 5-1, 5-2, 5-3
 **Depends on**: 3, 4

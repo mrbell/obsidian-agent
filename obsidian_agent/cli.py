@@ -213,6 +213,58 @@ def promote(
 
 
 # ---------------------------------------------------------------------------
+# agent (sub-app)
+# ---------------------------------------------------------------------------
+
+agent_app = typer.Typer(help="Commands for the Claude Code agent worker.")
+app.add_typer(agent_app, name="agent")
+
+
+@agent_app.command("test")
+def agent_test(
+    config: Path = typer.Option(
+        _DEFAULT_CONFIG, "--config", "-c", help="Path to config.yaml"
+    ),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable debug logging"),
+) -> None:
+    """Verify Claude Code is installed and able to produce output."""
+    from obsidian_agent.agent.worker import ClaudeCodeWorker
+
+    cfg = _load(config, verbose)
+
+    if not cfg.agent:
+        console.print(
+            "[bold red]Error:[/bold red] No 'agent' section in config.yaml. "
+            "Add agent.command to use LLM-assisted jobs."
+        )
+        raise typer.Exit(1)
+
+    worker = ClaudeCodeWorker(
+        cfg=cfg.agent,
+        vault_path=cfg.paths.vault,
+        db_path=cfg.cache.duckdb_path,
+    )
+
+    console.print("Running agent smoke test...")
+    result = worker.run(
+        "Say the word READY and nothing else.",
+        web_search=False,
+        with_mcp=False,
+    )
+
+    if result.returncode == 0 and result.output.strip():
+        console.print(f"[bold green]PASS[/bold green]  output: {result.output.strip()!r}")
+    else:
+        console.print(
+            f"[bold red]FAIL[/bold red]  "
+            f"exit={result.returncode}  "
+            f"output={result.output.strip()!r}  "
+            f"stderr={result.stderr[:200]!r}"
+        )
+        raise typer.Exit(1)
+
+
+# ---------------------------------------------------------------------------
 # mcp
 # ---------------------------------------------------------------------------
 

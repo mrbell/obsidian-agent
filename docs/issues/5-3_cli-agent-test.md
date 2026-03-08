@@ -1,6 +1,6 @@
 # 5-3 — CLI: agent test Command
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 5
 **Children**: —
 **Depends on**: 1-6, 5-1
