@@ -1,6 +1,6 @@
 # 1-5 — Index Builder
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 1
 **Children**: —
 **Depends on**: 1-3, 1-4
