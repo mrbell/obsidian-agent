@@ -1,6 +1,6 @@
 # 1-4 — DuckDB Schema and Store
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 1
 **Children**: —
 **Depends on**: 1-1
