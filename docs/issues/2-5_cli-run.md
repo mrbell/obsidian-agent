@@ -1,6 +1,6 @@
 # 2-5 — CLI: run Command
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 2
 **Children**: —
 **Depends on**: 1-6, 2-4
