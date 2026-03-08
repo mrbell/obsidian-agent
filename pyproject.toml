@@ -15,6 +15,9 @@ dependencies = [
 [project.scripts]
 obsidian-agent = "obsidian_agent.cli:app"
 
+[tool.setuptools.packages.find]
+include = ["obsidian_agent*"]
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",

@@ -11,6 +11,7 @@ _ALL_TABLES = {
     "tasks",
     "links",
     "tags",
+    "meta",
     "note_summaries",
     "topic_clusters",
 }

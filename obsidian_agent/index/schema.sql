@@ -44,6 +44,13 @@ CREATE TABLE IF NOT EXISTS tags (
     source          TEXT      -- 'inline' | 'frontmatter'
 );
 
+-- Index metadata
+
+CREATE TABLE IF NOT EXISTS meta (
+    key     TEXT PRIMARY KEY,
+    value   TEXT
+);
+
 -- Future tables (not used in initial implementation)
 
 CREATE TABLE IF NOT EXISTS note_summaries (

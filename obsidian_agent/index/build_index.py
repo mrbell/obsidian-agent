@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 from obsidian_agent.index.store import IndexStore
@@ -232,6 +233,13 @@ def build_index(vault_path: Path, store: IndexStore) -> IndexStats:
             )
             _insert_derived(store, note_relpath, parsed)
             stats.added += 1
+
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        conn.execute(
+            "INSERT INTO meta (key, value) VALUES ('last_indexed_at', ?)"
+            " ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+            [now],
+        )
 
         conn.execute("COMMIT")
 

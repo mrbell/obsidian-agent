@@ -1,6 +1,6 @@
 # 1-6 — CLI: index and status Commands
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 1
 **Children**: —
 **Depends on**: 1-1, 1-2, 1-5
