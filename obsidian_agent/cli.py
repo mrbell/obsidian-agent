@@ -246,6 +246,7 @@ def run(
     import logging
     from datetime import date
 
+    from obsidian_agent.agent.worker import ClaudeCodeWorker
     from obsidian_agent.context import JobContext
     from obsidian_agent.delivery.base import DeliveryError
     from obsidian_agent.delivery.smtp import SmtpDelivery
@@ -269,6 +270,14 @@ def run(
             console.print(f"[bold red]Delivery config error:[/bold red] {exc}")
             raise typer.Exit(1)
 
+    worker = None
+    if cfg.agent:
+        worker = ClaudeCodeWorker(
+            cfg=cfg.agent,
+            vault_path=cfg.paths.vault,
+            db_path=cfg.cache.duckdb_path,
+        )
+
     cfg.paths.state_dir.mkdir(parents=True, exist_ok=True)
     cfg.paths.outbox.mkdir(parents=True, exist_ok=True)
 
@@ -278,6 +287,7 @@ def run(
             config=cfg,
             today=date.today(),
             delivery=delivery,
+            worker=worker,
             logger=log,
         )
 

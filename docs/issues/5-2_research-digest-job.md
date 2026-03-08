@@ -1,6 +1,6 @@
 # 5-2 — Research Digest Job
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 5
 **Children**: —
 **Depends on**: 2-4, 3-1, 5-1
