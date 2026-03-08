@@ -196,17 +196,21 @@ Claude Code is given a task description. It uses MCP tools to retrieve whatever 
 it determines is relevant, and web tools (if enabled) for research tasks. The worker does not
 need to predict or pre-fetch context.
 
-**Confirmed invocation flags** (from spike 4-4 / `claude --help`):
+**Confirmed invocation flags** (validated in spike 4-4):
 
 ```
 claude -p "<prompt>" \
   --mcp-config /tmp/<uuid>-mcp.json \
-  --output-format text \
+  --output-format json \
   --no-session-persistence
 ```
 
-For Class C (research) jobs, add `--tools` to enable/restrict tools as needed. Web search
-(`WebSearch`, `WebFetch`) is available by default in `--print` mode.
+Use `--output-format json` (not `text`) so the worker can parse the structured result:
+the JSON object contains `result` (the text), `is_error` (boolean), and `stop_reason`.
+This allows reliable error detection without guessing from output text.
+
+For Class C (research) jobs, web search (`WebSearch`, `WebFetch`) is available by default
+in `--print` mode — no extra flags needed.
 
 **MCP config JSON format** (written to a temp file per invocation):
 
@@ -221,9 +225,9 @@ For Class C (research) jobs, add `--tools` to enable/restrict tools as needed. W
 }
 ```
 
-**Exit codes**: 0 on success, 1 on error (bad prompt, timeout, API error). Non-zero exit
-means no usable output — the worker returns a `WorkerResult` with the returncode and stderr
-for the job to handle.
+**Exit codes**: 0 on success, 1 on error (bad invocation, empty prompt, API error).
+Non-zero exit means no usable output — the worker returns a `WorkerResult` with the
+returncode and stderr for the job to handle.
 
 **Nested session note**: Claude Code blocks launching inside another Claude Code session
 (detects the `CLAUDECODE` env var). In production cron use this is not an issue. In testing,

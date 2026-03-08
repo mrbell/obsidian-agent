@@ -18,7 +18,7 @@ delivery:
 
 agent:
   command: claude
-  args: ["--print", "--output-format", "text", "--no-session-persistence"]
+  args: ["--print", "--output-format", "json", "--no-session-persistence"]
   timeout_seconds: 300
   work_dir: ~/.local/share/obsidian-agent/agent_workdir
 

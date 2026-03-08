@@ -17,7 +17,7 @@ MCP server registered. Used by all Class B and Class C jobs.
 ```bash
 claude -p "<prompt>" \
   --mcp-config /tmp/<uuid>-mcp.json \
-  --output-format text \
+  --output-format json \
   --no-session-persistence
 ```
 
@@ -34,7 +34,8 @@ MCP config JSON written to a temp file per invocation:
 }
 ```
 
-Exit codes: 0 = success, 1 = error. Stdout contains the plain text response.
+Exit codes: 0 = success, 1 = error. Stdout is a JSON object; extract `result` for the
+text and check `is_error` for structured error detection.
 `CLAUDECODE` env var causes nested-session rejection — use dummy command in tests.
 
 ### Interface

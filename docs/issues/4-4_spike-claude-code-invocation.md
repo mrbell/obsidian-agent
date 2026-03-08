@@ -58,8 +58,24 @@ restrict with `--allowedTools`. For Class C (research) jobs, leave defaults.
 
 ### 5. Stdout format
 
-`--output-format text` (the default) writes just the model's response text to stdout.
-Other options: `json` (structured), `stream-json` (streaming). Use `text` for simplicity.
+`--output-format text` (default): stdout is just the response text (confirmed: `pong`).
+
+`--output-format json`: stdout is a single JSON object:
+```json
+{
+  "type": "result",
+  "subtype": "success",
+  "is_error": false,
+  "result": "pong",
+  "stop_reason": "end_turn",
+  ...
+}
+```
+**Use `--output-format json` in the worker** — `is_error` gives reliable error detection
+without parsing text heuristics.
+
+`--output-format stream-json`: requires `--verbose`; emits multiple JSON events. Not
+suitable for the worker.
 
 ### 6. Exit codes
 
@@ -84,10 +100,11 @@ command (e.g. `echo`) instead of `claude`.
 ```bash
 claude -p "<prompt>" \
   --mcp-config /tmp/<uuid>-mcp.json \
-  --output-format text \
+  --output-format json \
   --no-session-persistence
 ```
 
+`--output-format json` enables structured error detection via `is_error` and `result` fields.
 `--no-session-persistence` prevents the invocation from writing session history to disk,
 keeping each job run fully isolated.
 
