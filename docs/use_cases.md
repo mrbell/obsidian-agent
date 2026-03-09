@@ -190,6 +190,55 @@ resurface and hygiene report both reward and reinforce this behavior.
 
 ---
 
+### 7. Conversation Capture (Cross-Surface Memory)
+
+**What it is**: A mechanism to extract key ideas, decisions, concepts, and open questions
+from Claude sessions — both Claude Code interactive sessions and Claude.ai conversations —
+and deposit them into the vault so they become part of the permanent, searchable knowledge
+base.
+
+**The problem**: The user's thinking is distributed across multiple surfaces that don't talk
+to each other:
+- **Vault** — what this system indexes and reasons over
+- **Claude Code sessions** — interactive sessions where design decisions, ideas, and plans
+  emerge (like the conversation that produced M6 and M7)
+- **Claude.ai conversations** — longer exploratory conversations; no programmatic access today
+- **Codebases** — ideas that make it into code, comments, and design docs
+
+Good ideas raised in a session often don't make it back to the vault. Some get manually
+re-phrased into notes; many don't. The result is a fragmented intellectual record.
+
+**Why it's different from other use cases**: Everything else in this system flows from the
+vault outward (vault → index → jobs → output → vault). This use case requires a new
+*input* path: conversation transcript → extract → vault. It's not a scheduled job; it's an
+on-demand ingestion tool.
+
+**Proposed approach**: An `obsidian-agent capture-session` CLI command (and possibly a Claude
+Code slash command shortcut). At the end of a meaningful session, invoke it to:
+1. Read the session transcript (Claude Code session JSONL from `~/.claude/projects/`, or
+   raw text piped from a Claude.ai export)
+2. Extract key ideas, decisions, open questions, and anything worth persisting
+3. Produce a structured vault note deposited via the promoter to `BotInbox/session_notes/`
+
+**The intentionality question**: Automatic capture of every session would produce noise. A
+deliberate "capture this session" action means the user is filtering for what matters. Some
+friction here may be a feature, not a bug.
+
+**Accessibility constraints**:
+- Claude Code sessions: transcript JSONL files exist on disk at `~/.claude/projects/` —
+  readable programmatically
+- Claude.ai conversations: no API access today; requires manual export as a bridge until
+  Anthropic provides programmatic access
+
+**Depends on**: Claude Code worker (M5, already built), promoter (M3, already built).
+The extraction prompt is similar to M6-3 concept extraction but operates on conversation
+transcripts rather than notes. Does not require the semantic index.
+
+**Status**: Imagined. Architecturally distinct from scheduled jobs — separate CLI command,
+new input source. Design when M7 is closer to complete.
+
+---
+
 ## Infrastructure Dependency Map
 
 ```
@@ -219,6 +268,12 @@ Future jobs (not yet planned)
   ├── learning_aid            — spaced retrieval practice
   ├── idea_expander           — expand implicit items into drafts
   └── concept_prompt_generator — brainstorming seeds
+
+On-demand tools (not scheduled jobs)
+  └── capture-session         — extract key ideas from Claude sessions into vault
+        ├── Input: Claude Code session JSONL or piped transcript text
+        ├── Depends on: worker (M5), promoter (M3) — no semantic index needed
+        └── Constraint: Claude.ai sessions require manual export until API access exists
 ```
 
 ---
