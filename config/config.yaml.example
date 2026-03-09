@@ -40,3 +40,11 @@ jobs:
       - "large language models"
       - "personal knowledge management"
     also_notify: true
+
+  vault_connections_report:
+    enabled: true
+    schedule: "0 9 * * 1"             # Monday 09:00
+    lookback_recent_days: 14          # notes modified in this window = "recent"
+    lookback_old_days: 30             # only surface notes not touched in this many days
+    max_connections: 5                # max items to include in the report
+    also_notify: true

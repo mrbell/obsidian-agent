@@ -71,12 +71,25 @@ class ResearchDigestConfig:
 
 
 @dataclass(frozen=True)
+class VaultConnectionsReportConfig:
+    enabled: bool = True
+    schedule: str = "0 9 * * 1"   # Monday 09:00
+    lookback_recent_days: int = 14
+    lookback_old_days: int = 30
+    max_connections: int = 5
+    also_notify: bool = True
+
+
+@dataclass(frozen=True)
 class JobsConfig:
     task_notification: TaskNotificationConfig = field(
         default_factory=TaskNotificationConfig
     )
     research_digest: ResearchDigestConfig = field(
         default_factory=ResearchDigestConfig
+    )
+    vault_connections_report: VaultConnectionsReportConfig = field(
+        default_factory=VaultConnectionsReportConfig
     )
 
 
@@ -217,12 +230,28 @@ def _parse_research_digest(raw: dict | None) -> ResearchDigestConfig:
     )
 
 
+def _parse_vault_connections_report(raw: dict | None) -> VaultConnectionsReportConfig:
+    if not raw:
+        return VaultConnectionsReportConfig()
+    return VaultConnectionsReportConfig(
+        enabled=bool(raw.get("enabled", True)),
+        schedule=str(raw.get("schedule", "0 9 * * 1")),
+        lookback_recent_days=int(raw.get("lookback_recent_days", 14)),
+        lookback_old_days=int(raw.get("lookback_old_days", 30)),
+        max_connections=int(raw.get("max_connections", 5)),
+        also_notify=bool(raw.get("also_notify", True)),
+    )
+
+
 def _parse_jobs(raw: dict | None) -> JobsConfig:
     if not raw:
         return JobsConfig()
     return JobsConfig(
         task_notification=_parse_task_notification(raw.get("task_notification")),
         research_digest=_parse_research_digest(raw.get("research_digest")),
+        vault_connections_report=_parse_vault_connections_report(
+            raw.get("vault_connections_report")
+        ),
     )
 
 
