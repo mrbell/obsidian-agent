@@ -81,12 +81,19 @@ class JobsConfig:
 
 
 @dataclass(frozen=True)
+class SemanticConfig:
+    model: str = "all-MiniLM-L6-v2"
+    max_notes_per_run: int | None = None  # None = unlimited
+
+
+@dataclass(frozen=True)
 class Config:
     paths: PathsConfig
     cache: CacheConfig
     delivery: DeliveryConfig
     agent: AgentConfig | None
     jobs: JobsConfig
+    semantic: SemanticConfig = field(default_factory=SemanticConfig)
 
 
 # ---------------------------------------------------------------------------
@@ -219,6 +226,16 @@ def _parse_jobs(raw: dict | None) -> JobsConfig:
     )
 
 
+def _parse_semantic(raw: dict | None) -> SemanticConfig:
+    if not raw:
+        return SemanticConfig()
+    max_notes = raw.get("max_notes_per_run")
+    return SemanticConfig(
+        model=str(raw.get("model", "all-MiniLM-L6-v2")),
+        max_notes_per_run=int(max_notes) if max_notes is not None else None,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -247,4 +264,5 @@ def load_config(config_path: Path) -> Config:
         delivery=_parse_delivery(raw.get("delivery")),
         agent=_parse_agent(raw.get("agent")),
         jobs=_parse_jobs(raw.get("jobs")),
+        semantic=_parse_semantic(raw.get("semantic")),
     )

@@ -107,21 +107,49 @@ def index_semantic(
         raise typer.Exit(1)
 
     log.info("Starting semantic index. vault=%s", cfg.paths.vault)
-    embedder = LocalEmbedder()
+
+    embedder = LocalEmbedder(model_name=cfg.semantic.model)
+
+    worker = None
+    if cfg.agent:
+        from obsidian_agent.agent.worker import ClaudeCodeWorker
+        worker = ClaudeCodeWorker(
+            cfg=cfg.agent,
+            vault_path=cfg.paths.vault,
+            db_path=cfg.cache.duckdb_path,
+        )
 
     with IndexStore(cfg.cache.duckdb_path) as store:
-        stats = run_semantic_index(cfg.paths.vault, store, embedder)
+        emb_stats, intel_stats = run_semantic_index(
+            cfg.paths.vault,
+            store,
+            embedder,
+            worker=worker,
+            max_notes_per_run=cfg.semantic.max_notes_per_run,
+        )
 
     log.info(
-        "Semantic index complete. processed=%d skipped=%d chunks=%d",
-        stats.notes_processed, stats.notes_skipped, stats.chunks_embedded,
+        "Semantic index complete. embedding: processed=%d skipped=%d chunks=%d",
+        emb_stats.notes_processed, emb_stats.notes_skipped, emb_stats.chunks_embedded,
     )
+    if intel_stats is not None:
+        log.info(
+            "Intelligence phase: processed=%d skipped=%d failed=%d",
+            intel_stats.notes_processed, intel_stats.notes_skipped, intel_stats.notes_failed,
+        )
+
     console.print(
         f"[bold]Semantic index complete[/bold]  "
-        f"processed [cyan]{stats.notes_processed}[/cyan]  "
-        f"skipped {stats.notes_skipped}  "
-        f"chunks [green]{stats.chunks_embedded}[/green]"
+        f"embedded [cyan]{emb_stats.notes_processed}[/cyan]  "
+        f"chunks [green]{emb_stats.chunks_embedded}[/green]"
     )
+    if intel_stats is not None:
+        console.print(
+            f"  intelligence: processed [cyan]{intel_stats.notes_processed}[/cyan]  "
+            f"failed [red]{intel_stats.notes_failed}[/red]"
+        )
+    elif cfg.agent is None:
+        console.print("  [dim]Intelligence phase skipped (no agent configured)[/dim]")
 
 
 # ---------------------------------------------------------------------------
