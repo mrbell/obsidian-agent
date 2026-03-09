@@ -124,3 +124,24 @@ CREATE TABLE IF NOT EXISTS implicit_items (
     text            TEXT NOT NULL,
     extracted_at    TIMESTAMP
 );
+
+-- Convenience views over the semantic index (Milestone 6-4)
+
+CREATE OR REPLACE VIEW note_concepts_summary AS
+SELECT
+    c.note_relpath,
+    con.name         AS concept,
+    MAX(cc.salience) AS salience
+FROM chunk_concepts cc
+JOIN chunks c     ON c.id  = cc.chunk_id
+JOIN concepts con ON con.id = cc.concept_id
+GROUP BY c.note_relpath, con.name;
+
+CREATE OR REPLACE VIEW note_entities_summary AS
+SELECT DISTINCT
+    c.note_relpath,
+    e.name AS entity,
+    e.type AS entity_type
+FROM chunk_entities ce
+JOIN chunks c   ON c.id  = ce.chunk_id
+JOIN entities e ON e.id  = ce.entity_id;

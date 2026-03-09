@@ -23,6 +23,9 @@ _ALL_TABLES = {
     "entities",
     "chunk_entities",
     "implicit_items",
+    # Semantic views (Milestone 6-4; DuckDB includes views in SHOW TABLES)
+    "note_concepts_summary",
+    "note_entities_summary",
 }
 
 
