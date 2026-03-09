@@ -53,8 +53,17 @@ can be restricted with `--tools` or `--allowedTools`.
 
 ### 4. Web search
 
-Web search (`WebSearch`, `WebFetch`) is enabled by default. To disable: `--tools ""` or
-restrict with `--allowedTools`. For Class C (research) jobs, leave defaults.
+In headless `--print` mode, web tools require explicit permission — there is no user
+present to approve interactive prompts. Use `--allowedTools` to grant them:
+
+- Class C (research) jobs: `--allowedTools WebSearch,WebFetch` — grants web access
+- Class B (non-research) jobs: `--disallowed-tools WebSearch WebFetch` — blocks web access
+
+`--allowedTools` does **not** block MCP tools registered via `--mcp-config`; those
+remain available regardless. Confirmed in production.
+
+**Do not use `--dangerously-skip-permissions`** — it is intended for isolated
+environments (containers/VMs) and is unnecessarily broad for a personal cron job.
 
 ### 5. Stdout format
 

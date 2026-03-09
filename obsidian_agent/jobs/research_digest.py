@@ -93,8 +93,9 @@ def run(ctx: JobContext) -> list[JobOutput]:
 
         if not _validate_output(result.output):
             ctx.logger.error(
-                "research_digest: invalid output for topic=%r (empty or missing ## headings)",
-                topic,
+                "research_digest: invalid output for topic=%r (empty or missing ## headings). "
+                "output preview: %r",
+                topic, result.output[:500] if result.output else "<empty>",
             )
             continue
 

@@ -69,8 +69,11 @@ class ClaudeCodeWorker:
                 )
                 cmd += ["--mcp-config", str(mcp_config_path)]
 
-            # Disable web search for Class B (non-research) jobs
-            if not web_search:
+            # In headless mode there is no user to approve permission prompts.
+            # Explicitly allow or disallow web tools based on the job's needs.
+            if web_search:
+                cmd += ["--allowedTools", "WebSearch,WebFetch"]
+            else:
                 cmd += ["--disallowed-tools", "WebSearch", "WebFetch"]
 
             # Terminate option parsing before the prompt so variadic flags
@@ -133,11 +136,13 @@ def _extract_output(stdout: str) -> str:
     try:
         data = json.loads(stdout)
         if isinstance(data, dict):
+            if data.get("is_error"):
+                log.error("Worker returned is_error=true. result=%r", data.get("result", "")[:300])
             return data.get("result", "") or ""
         # Valid JSON but not the expected object shape — fall through to raw
     except json.JSONDecodeError:
         pass
-    log.warning("Worker stdout was not valid JSON result object; using raw output.")
+    log.warning("Worker stdout was not valid JSON result object; using raw output. stdout[:200]=%r", stdout[:200])
     return stdout
 
 
