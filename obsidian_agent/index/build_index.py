@@ -49,6 +49,19 @@ _ALL_TABLES = (
     "topic_clusters",
 )
 
+# Semantic tables that reference note_relpath directly (not via chunk_id)
+_SEMANTIC_NOTE_TABLES = (
+    "note_intelligence",
+    "implicit_items",
+)
+
+# Semantic tables that reference chunks via chunk_id (require cascade via chunks)
+_SEMANTIC_CHUNK_TABLES = (
+    "chunk_embeddings",
+    "chunk_concepts",
+    "chunk_entities",
+)
+
 
 def _sha256(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
@@ -66,11 +79,66 @@ def _delete_all(store: IndexStore, note_relpath: str) -> None:
         store.conn.execute(
             f"DELETE FROM {table} WHERE note_relpath = ?", [note_relpath]
         )
+    _delete_semantic(store, note_relpath)
+
+
+def _delete_semantic(store: IndexStore, note_relpath: str) -> None:
+    """Delete all semantic index rows for a note, cascading through chunk_id FK."""
+    conn = store.conn
+    chunk_ids = [
+        row[0]
+        for row in conn.execute(
+            "SELECT id FROM chunks WHERE note_relpath = ?", [note_relpath]
+        ).fetchall()
+    ]
+    for cid in chunk_ids:
+        for table in _SEMANTIC_CHUNK_TABLES:
+            conn.execute(f"DELETE FROM {table} WHERE chunk_id = ?", [cid])
+    for table in _SEMANTIC_NOTE_TABLES:
+        conn.execute(f"DELETE FROM {table} WHERE note_relpath = ?", [note_relpath])
+    conn.execute("DELETE FROM chunks WHERE note_relpath = ?", [note_relpath])
 
 
 def _rename_in_db(store: IndexStore, old_path: str, new_path: str) -> None:
     for table in _ALL_TABLES:
         store.conn.execute(
+            f"UPDATE {table} SET note_relpath = ? WHERE note_relpath = ?",
+            [new_path, old_path],
+        )
+    _rename_semantic(store, old_path, new_path)
+
+
+def _rename_semantic(store: IndexStore, old_path: str, new_path: str) -> None:
+    """Update note_relpath and chunk_id keys in semantic tables after a rename."""
+    conn = store.conn
+    rows = conn.execute(
+        "SELECT id, chunk_index FROM chunks WHERE note_relpath = ?", [old_path]
+    ).fetchall()
+
+    # Update chunk_id references in child tables before changing the primary key
+    for old_id, chunk_index in rows:
+        new_id = f"{new_path}:{chunk_index}"
+        for table in _SEMANTIC_CHUNK_TABLES:
+            conn.execute(
+                f"UPDATE {table} SET chunk_id = ? WHERE chunk_id = ?",
+                [new_id, old_id],
+            )
+        conn.execute(
+            "UPDATE implicit_items SET chunk_id = ? WHERE chunk_id = ?",
+            [new_id, old_id],
+        )
+
+    # Update each chunk row's primary key and note_relpath
+    for old_id, chunk_index in rows:
+        new_id = f"{new_path}:{chunk_index}"
+        conn.execute(
+            "UPDATE chunks SET id = ?, note_relpath = ? WHERE id = ?",
+            [new_id, new_path, old_id],
+        )
+
+    # Update note-level semantic tables
+    for table in _SEMANTIC_NOTE_TABLES:
+        conn.execute(
             f"UPDATE {table} SET note_relpath = ? WHERE note_relpath = ?",
             [new_path, old_path],
         )

@@ -81,6 +81,50 @@ def index(
 
 
 # ---------------------------------------------------------------------------
+# index-semantic
+# ---------------------------------------------------------------------------
+
+@app.command("index-semantic")
+def index_semantic(
+    config: Path = typer.Option(
+        _DEFAULT_CONFIG, "--config", "-c", help="Path to config.yaml"
+    ),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable debug logging"),
+) -> None:
+    """Update the semantic index (embeddings + concept extraction) for changed notes."""
+    import logging
+
+    from obsidian_agent.embeddings.local import LocalEmbedder
+    from obsidian_agent.index.semantic import run_semantic_index
+
+    cfg = _load(config, verbose)
+    log = logging.getLogger(__name__)
+
+    if not cfg.cache.duckdb_path.exists():
+        console.print(
+            "[yellow]Index not found. Run [bold]obsidian-agent index[/bold] first.[/yellow]"
+        )
+        raise typer.Exit(1)
+
+    log.info("Starting semantic index. vault=%s", cfg.paths.vault)
+    embedder = LocalEmbedder()
+
+    with IndexStore(cfg.cache.duckdb_path) as store:
+        stats = run_semantic_index(cfg.paths.vault, store, embedder)
+
+    log.info(
+        "Semantic index complete. processed=%d skipped=%d chunks=%d",
+        stats.notes_processed, stats.notes_skipped, stats.chunks_embedded,
+    )
+    console.print(
+        f"[bold]Semantic index complete[/bold]  "
+        f"processed [cyan]{stats.notes_processed}[/cyan]  "
+        f"skipped {stats.notes_skipped}  "
+        f"chunks [green]{stats.chunks_embedded}[/green]"
+    )
+
+
+# ---------------------------------------------------------------------------
 # status
 # ---------------------------------------------------------------------------
 
