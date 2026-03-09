@@ -1,6 +1,6 @@
 # 6-1 — Embedding Infrastructure
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 6
 **Depends on**: (none — pure infrastructure)
 

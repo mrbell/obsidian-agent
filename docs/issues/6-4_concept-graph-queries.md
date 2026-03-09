@@ -1,6 +1,6 @@
 # 6-4 — Concept Graph Queries
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 6
 **Depends on**: 6-3
 

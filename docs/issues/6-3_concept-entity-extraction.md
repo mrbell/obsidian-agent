@@ -1,6 +1,6 @@
 # 6-3 — Concept and Entity Extraction (Intelligence Phase)
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 6
 **Depends on**: 6-1, 6-2
 

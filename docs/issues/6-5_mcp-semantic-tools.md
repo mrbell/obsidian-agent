@@ -1,6 +1,6 @@
 # 6-5 — MCP Semantic Tools
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 6
 **Depends on**: 6-4
 
