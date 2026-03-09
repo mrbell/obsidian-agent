@@ -41,6 +41,8 @@ EXPECTED_TOOLS = {
     "get_entity_context",
     "get_recent_concepts",
     "get_implicit_items",
+    # Semantic tools (Milestone 7)
+    "get_stale_concepts",
 }
 
 

@@ -1,6 +1,6 @@
 # 7-2 — vault_hygiene_report
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 7
 **Depends on**: 6-4, 6-5
 

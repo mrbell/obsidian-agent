@@ -81,6 +81,13 @@ class VaultConnectionsReportConfig:
 
 
 @dataclass(frozen=True)
+class VaultHygieneReportConfig:
+    enabled: bool = True
+    schedule: str = "0 10 1,15 * *"   # 1st and 15th of the month
+    also_notify: bool = True
+
+
+@dataclass(frozen=True)
 class JobsConfig:
     task_notification: TaskNotificationConfig = field(
         default_factory=TaskNotificationConfig
@@ -90,6 +97,9 @@ class JobsConfig:
     )
     vault_connections_report: VaultConnectionsReportConfig = field(
         default_factory=VaultConnectionsReportConfig
+    )
+    vault_hygiene_report: VaultHygieneReportConfig = field(
+        default_factory=VaultHygieneReportConfig
     )
 
 
@@ -243,6 +253,16 @@ def _parse_vault_connections_report(raw: dict | None) -> VaultConnectionsReportC
     )
 
 
+def _parse_vault_hygiene_report(raw: dict | None) -> VaultHygieneReportConfig:
+    if not raw:
+        return VaultHygieneReportConfig()
+    return VaultHygieneReportConfig(
+        enabled=bool(raw.get("enabled", True)),
+        schedule=str(raw.get("schedule", "0 10 1,15 * *")),
+        also_notify=bool(raw.get("also_notify", True)),
+    )
+
+
 def _parse_jobs(raw: dict | None) -> JobsConfig:
     if not raw:
         return JobsConfig()
@@ -251,6 +271,9 @@ def _parse_jobs(raw: dict | None) -> JobsConfig:
         research_digest=_parse_research_digest(raw.get("research_digest")),
         vault_connections_report=_parse_vault_connections_report(
             raw.get("vault_connections_report")
+        ),
+        vault_hygiene_report=_parse_vault_hygiene_report(
+            raw.get("vault_hygiene_report")
         ),
     )
 

@@ -281,6 +281,28 @@ def get_recent_concepts_mcp(
     ]
 
 
+def get_stale_concepts_mcp(
+    store: IndexStore,
+    inactive_before: str,
+    n: int = 20,
+) -> list[dict[str, Any]]:
+    """Return concepts not seen in any note modified since inactive_before.
+
+    inactive_before: ISO date string (e.g. '2025-09-01').
+    Each entry has: name, last_seen_date, note_count, avg_salience.
+    """
+    concepts = sq.get_stale_concepts(store.conn, inactive_before=inactive_before, n=n)
+    return [
+        {
+            "name": c.name,
+            "last_seen_date": c.last_seen_date,
+            "note_count": c.note_count,
+            "avg_salience": c.avg_salience,
+        }
+        for c in concepts
+    ]
+
+
 def get_implicit_items_mcp(
     store: IndexStore,
     item_type: str | None = None,

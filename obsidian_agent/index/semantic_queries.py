@@ -5,6 +5,7 @@ dataclasses. No data is modified — these are read-only query helpers.
 """
 from __future__ import annotations
 
+import datetime
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -35,6 +36,14 @@ class ImplicitItem:
     note_relpath: str
     type: str
     text: str
+
+
+@dataclass(frozen=True)
+class StaleConcept:
+    name: str
+    last_seen_date: str   # ISO date of most recent associated note modification
+    note_count: int
+    avg_salience: float
 
 
 # ---------------------------------------------------------------------------
@@ -345,6 +354,52 @@ def find_unformalized_tasks(conn: Any) -> list[ImplicitItem]:
 # ---------------------------------------------------------------------------
 # Cross-index: unlinked related notes
 # ---------------------------------------------------------------------------
+
+def get_stale_concepts(
+    conn: Any,
+    inactive_before: str,
+    n: int = 20,
+) -> list[StaleConcept]:
+    """Return concepts whose most recent associated note hasn't been modified since inactive_before.
+
+    inactive_before: ISO date string (e.g. '2025-12-01'). Concepts are stale when every
+    note that mentions them has mtime_ns older than this date.
+
+    Ordered by last_seen_date descending (most recently active stale concepts first).
+    Useful for detecting 'orphaned threads' — ideas that were active at some point but
+    have since gone quiet.
+    """
+    cutoff_ns = int(
+        time.mktime(datetime.date.fromisoformat(inactive_before).timetuple()) * 1e9
+    )
+    rows = conn.execute(
+        """
+        SELECT con.name,
+               MAX(n.mtime_ns)                   AS last_seen_ns,
+               COUNT(DISTINCT c.note_relpath)     AS note_count,
+               AVG(cc.salience)                   AS avg_salience
+        FROM chunk_concepts cc
+        JOIN chunks c     ON c.id  = cc.chunk_id
+        JOIN concepts con ON con.id = cc.concept_id
+        JOIN notes n      ON n.note_relpath = c.note_relpath
+        GROUP BY con.name
+        HAVING MAX(n.mtime_ns) < ?
+        ORDER BY last_seen_ns DESC
+        LIMIT ?
+        """,
+        [cutoff_ns, n],
+    ).fetchall()
+    results = []
+    for row in rows:
+        last_seen_dt = datetime.datetime.fromtimestamp(row[1] / 1e9)
+        results.append(StaleConcept(
+            name=row[0],
+            last_seen_date=last_seen_dt.date().isoformat(),
+            note_count=row[2],
+            avg_salience=float(row[3]),
+        ))
+    return results
+
 
 def find_unlinked_related_notes(
     conn: Any,

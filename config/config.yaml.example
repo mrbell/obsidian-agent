@@ -48,3 +48,8 @@ jobs:
     lookback_old_days: 30             # only surface notes not touched in this many days
     max_connections: 5                # max items to include in the report
     also_notify: true
+
+  vault_hygiene_report:
+    enabled: true
+    schedule: "0 10 1,15 * *"         # 1st and 15th of the month
+    also_notify: true

@@ -157,6 +157,16 @@ def create_server(
         return _tools.get_recent_concepts_mcp(store, days=days, n=n)
 
     @mcp.tool()
+    def get_stale_concepts(inactive_before: str, n: int = 20) -> list[dict[str, Any]]:
+        """Return concepts not seen in any note modified since inactive_before.
+
+        inactive_before: ISO date string (e.g. '2025-09-01').
+        Useful for finding 'orphaned threads' — ideas the user was active on that have
+        since gone quiet. Each entry has: name, last_seen_date, note_count, avg_salience.
+        """
+        return _tools.get_stale_concepts_mcp(store, inactive_before=inactive_before, n=n)
+
+    @mcp.tool()
     def get_implicit_items(
         type: str | None = None,
         since: str | None = None,
