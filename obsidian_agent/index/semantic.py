@@ -270,10 +270,10 @@ def _build_extraction_prompt(note_relpath: str, chunk_texts: list[str]) -> str:
         '{\n'
         '  "summary": "2-4 sentence summary of what this note is about.",\n'
         '  "concepts": [\n'
-        '    {"name": "concept name (lowercase)", "salience": 0.0}\n'
+        '    {"name": "concept name (lowercase)", "salience": 0.0, "chunk_index": 0}\n'
         '  ],\n'
         '  "entities": [\n'
-        '    {"name": "entity name", "type": "person|project|tool|book|place|other"}\n'
+        '    {"name": "entity name", "type": "person|project|tool|book|place|other", "chunk_index": 0}\n'
         '  ],\n'
         '  "implicit_items": [\n'
         '    {"type": "idea|question|intention|task", "text": "the item text", "chunk_index": 0}\n'
@@ -282,8 +282,10 @@ def _build_extraction_prompt(note_relpath: str, chunk_texts: list[str]) -> str:
         "Guidelines:\n"
         "- concepts: recurring topics, themes, and ideas discussed. 3-10 per note is typical.\n"
         "  salience: 1.0 = the note is primarily about this, 0.3 = mentioned in passing.\n"
+        "  chunk_index: the 0-based index of the paragraph where this concept is most prominent.\n"
         "- entities: proper nouns — specific people, named projects, software tools, book titles,\n"
         "  locations. Not generic terms.\n"
+        "  chunk_index: the 0-based index of the paragraph where this entity first appears.\n"
         "- implicit_items: only things not already captured as formal tasks (- [ ] ...) in the note.\n"
         "  Focus on items buried in prose. Do not invent items not present.\n"
         "- If a field would be an empty list, return []."
@@ -362,14 +364,16 @@ def _store_extraction(
     conn.execute("DELETE FROM implicit_items WHERE note_relpath = ?", [note_relpath])
 
     # --- concepts ---
+    n_chunks = len(chunk_ids)
     for concept in data.get("concepts", []):
         name = str(concept.get("name", "")).strip().lower()
         if not name:
             continue
         salience = float(concept.get("salience", 0.5))
+        chunk_index = int(concept.get("chunk_index", 0))
+        chunk_index = max(0, min(chunk_index, n_chunks - 1)) if n_chunks else 0
+        chunk_id = chunk_ids[chunk_index] if chunk_ids else ""
         concept_id = _get_or_create_concept(conn, name)
-        # chunk_index not provided per-concept; associate with first chunk
-        chunk_id = chunk_ids[0] if chunk_ids else ""
         conn.execute(
             "INSERT INTO chunk_concepts (chunk_id, concept_id, salience) VALUES (?, ?, ?)"
             " ON CONFLICT (chunk_id, concept_id) DO UPDATE SET salience = excluded.salience",
@@ -382,8 +386,10 @@ def _store_extraction(
         entity_type = str(entity.get("type", "other")).strip()
         if not name:
             continue
+        chunk_index = int(entity.get("chunk_index", 0))
+        chunk_index = max(0, min(chunk_index, n_chunks - 1)) if n_chunks else 0
+        chunk_id = chunk_ids[chunk_index] if chunk_ids else ""
         entity_id = _get_or_create_entity(conn, name, entity_type)
-        chunk_id = chunk_ids[0] if chunk_ids else ""
         conn.execute(
             "INSERT INTO chunk_entities (chunk_id, entity_id, context_snippet) VALUES (?, ?, ?)"
             " ON CONFLICT (chunk_id, entity_id) DO UPDATE SET context_snippet = excluded.context_snippet",
@@ -391,7 +397,6 @@ def _store_extraction(
         )
 
     # --- implicit_items ---
-    n_chunks = len(chunk_ids)
     for item in data.get("implicit_items", []):
         item_type = str(item.get("type", "idea")).strip()
         text = str(item.get("text", "")).strip()
