@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from obsidian_agent.index import queries
+from obsidian_agent.index import semantic_queries as sq
 from obsidian_agent.index.store import IndexStore
 
 
@@ -133,3 +134,185 @@ def get_vault_stats(store: IndexStore) -> dict[str, Any]:
         "task_count": queries.get_task_count(store),
         "last_indexed_at": queries.get_last_indexed_at(store),
     }
+
+
+# ---------------------------------------------------------------------------
+# Semantic tools (Milestone 6-5)
+# ---------------------------------------------------------------------------
+
+def search_similar(
+    store: IndexStore,
+    embedder: Any,
+    query: str,
+    n: int = 10,
+) -> list[dict[str, Any]]:
+    """Embed query and return the N most semantically similar vault chunks."""
+    if not query.strip():
+        return []
+    chunk_count = store.conn.execute("SELECT count(*) FROM chunk_embeddings").fetchone()[0]
+    if chunk_count == 0:
+        return []
+    try:
+        vector = embedder.embed([query])[0]
+        results = sq.search_similar(store.conn, vector, n=n)
+    except Exception:
+        return []
+    return [
+        {
+            "path": r.note_relpath,
+            "chunk_index": r.chunk_index,
+            "section_header": r.section_header,
+            "text": r.text,
+            "score": r.score,
+        }
+        for r in results
+    ]
+
+
+def get_note_summary(store: IndexStore, note_relpath: str) -> str | None:
+    """Return the LLM-generated summary for a note, or None if not available."""
+    row = store.conn.execute(
+        "SELECT summary FROM note_intelligence WHERE note_relpath = ?",
+        [note_relpath],
+    ).fetchone()
+    return row[0] if row else None
+
+
+def find_related_notes_semantic(
+    store: IndexStore,
+    note_relpath: str,
+    n: int = 5,
+) -> list[dict[str, Any]]:
+    """Return notes most conceptually related to note_relpath, with summaries."""
+    related = sq.find_related_notes(store.conn, note_relpath, n=n)
+    results = []
+    for relpath, score in related:
+        summary_row = store.conn.execute(
+            "SELECT summary FROM note_intelligence WHERE note_relpath = ?",
+            [relpath],
+        ).fetchone()
+        results.append({
+            "path": relpath,
+            "overlap_score": score,
+            "summary": summary_row[0] if summary_row else None,
+        })
+    return results
+
+
+def list_concepts_mcp(store: IndexStore, n: int = 30) -> list[dict[str, Any]]:
+    """Return the most prominent concepts across the vault."""
+    concepts = sq.list_concepts(store.conn, n=n)
+    return [
+        {"name": c.name, "note_count": c.note_count, "avg_salience": c.avg_salience}
+        for c in concepts
+    ]
+
+
+def search_by_concept_mcp(
+    store: IndexStore,
+    concept: str,
+    n: int = 10,
+) -> list[dict[str, Any]]:
+    """Find notes/chunks that discuss a concept (case-insensitive substring match)."""
+    concept_lower = concept.strip().lower()
+    if not concept_lower:
+        return []
+    matching = store.conn.execute(
+        "SELECT name FROM concepts WHERE name LIKE ?",
+        [f"%{concept_lower}%"],
+    ).fetchall()
+    seen: set[tuple[str, int]] = set()
+    results: list[dict[str, Any]] = []
+    for (name,) in matching:
+        for chunk in sq.search_by_concept(store.conn, name):
+            key = (chunk.note_relpath, chunk.chunk_index)
+            if key not in seen:
+                seen.add(key)
+                results.append({
+                    "path": chunk.note_relpath,
+                    "chunk_index": chunk.chunk_index,
+                    "section_header": chunk.section_header,
+                    "text": chunk.text,
+                    "salience": chunk.score,
+                })
+    results.sort(key=lambda x: x["salience"], reverse=True)
+    return results[:n]
+
+
+def get_entity_context_mcp(
+    store: IndexStore,
+    name: str,
+    n: int = 10,
+) -> list[dict[str, Any]]:
+    """Find vault chunks mentioning a named entity (case-insensitive substring)."""
+    rows = store.conn.execute(
+        """
+        SELECT c.note_relpath, c.chunk_index, c.section_header, c.text, ce.context_snippet
+        FROM chunk_entities ce
+        JOIN chunks c   ON c.id  = ce.chunk_id
+        JOIN entities e ON e.id  = ce.entity_id
+        WHERE e.name ILIKE ?
+        LIMIT ?
+        """,
+        [f"%{name}%", n],
+    ).fetchall()
+    return [
+        {
+            "path": row[0],
+            "chunk_index": row[1],
+            "section_header": row[2],
+            "text": row[3],
+            "context": row[4],
+        }
+        for row in rows
+    ]
+
+
+def get_recent_concepts_mcp(
+    store: IndexStore,
+    days: int = 14,
+    n: int = 20,
+) -> list[dict[str, Any]]:
+    """Return top concepts in notes modified within the last N days."""
+    concepts = sq.get_recent_concepts(store.conn, since_days=days, n=n)
+    return [
+        {"name": c.name, "note_count": c.note_count, "avg_salience": c.avg_salience}
+        for c in concepts
+    ]
+
+
+def get_implicit_items_mcp(
+    store: IndexStore,
+    item_type: str | None = None,
+    since: str | None = None,
+    n: int = 20,
+) -> list[dict[str, Any]]:
+    """Return informal ideas, questions, intentions, and tasks from vault prose.
+
+    item_type: 'idea' | 'question' | 'intention' | 'task' | None (all)
+    since: ISO date string — only items from notes modified on or after this date
+    """
+    if since is not None:
+        import time
+        since_date = date.fromisoformat(since)
+        since_ns = int(time.mktime(since_date.timetuple()) * 1e9)
+        conditions = ["ii.note_relpath = n.note_relpath", "n.mtime_ns >= ?"]
+        params: list[Any] = [since_ns]
+        if item_type:
+            conditions.append("ii.type = ?")
+            params.append(item_type)
+        rows = store.conn.execute(
+            f"""
+            SELECT ii.note_relpath, ii.type, ii.text
+            FROM implicit_items ii
+            JOIN notes n ON n.note_relpath = ii.note_relpath
+            WHERE {' AND '.join(conditions)}
+            ORDER BY n.mtime_ns DESC
+            LIMIT ?
+            """,
+            [*params, n],
+        ).fetchall()
+    else:
+        items = sq.get_implicit_items(store.conn, item_type=item_type)
+        rows = [(i.note_relpath, i.type, i.text) for i in items[:n]]
+    return [{"path": row[0], "type": row[1], "text": row[2]} for row in rows]

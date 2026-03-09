@@ -23,6 +23,7 @@ from obsidian_agent.mcp.server import create_server
 # ---------------------------------------------------------------------------
 
 EXPECTED_TOOLS = {
+    # Structural tools (Milestone 4)
     "search_notes",
     "get_note",
     "list_notes",
@@ -31,6 +32,15 @@ EXPECTED_TOOLS = {
     "get_note_links",
     "find_notes_by_tag",
     "get_vault_stats",
+    # Semantic tools (Milestone 6-5)
+    "search_similar",
+    "get_note_summary",
+    "find_related_notes",
+    "list_concepts",
+    "search_by_concept",
+    "get_entity_context",
+    "get_recent_concepts",
+    "get_implicit_items",
 }
 
 

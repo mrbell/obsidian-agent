@@ -351,7 +351,7 @@ def mcp(
     from obsidian_agent.mcp.server import run_server
 
     cfg = _load(config, verbose)
-    run_server(cfg.paths.vault, cfg.cache.duckdb_path)
+    run_server(cfg.paths.vault, cfg.cache.duckdb_path, semantic_model=cfg.semantic.model)
 
 
 # ---------------------------------------------------------------------------
