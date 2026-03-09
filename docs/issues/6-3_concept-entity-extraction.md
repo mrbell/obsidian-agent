@@ -4,12 +4,9 @@
 **Parent**: 6
 **Depends on**: 6-1, 6-2
 
-**Known gap**: Implementation associates all concepts and entities with `chunk_ids[0]`
-rather than the chunk where they actually appear. The schema supports per-chunk
-association (chunk_concepts/chunk_entities use chunk_id as PK component). Fix requires:
-updating the extraction prompt to include `chunk_index` on each concept and entity,
-and mapping to the correct chunk_id in `_store_extraction`. Track as a follow-up issue
-before M7 jobs consume concept data.
+**Known gap**: ~~resolved~~ — prompt now requests `chunk_index` on each concept and
+entity; `_store_extraction` maps each to the correct `chunk_ids[chunk_index]` (same
+pattern as `implicit_items`). Fixed in commit 636bc4c.
 
 ## Description
 
