@@ -14,6 +14,15 @@ _ALL_TABLES = {
     "meta",
     "note_summaries",
     "topic_clusters",
+    # Semantic index tables (Milestone 6)
+    "chunks",
+    "chunk_embeddings",
+    "note_intelligence",
+    "concepts",
+    "chunk_concepts",
+    "entities",
+    "chunk_entities",
+    "implicit_items",
 }
 
 
