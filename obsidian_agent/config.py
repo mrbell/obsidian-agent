@@ -110,6 +110,12 @@ class SemanticConfig:
 
 
 @dataclass(frozen=True)
+class IndexingConfig:
+    schedule: str = "0 3 * * *"           # structural index — nightly at 03:00
+    semantic_schedule: str = "5 3 * * *"  # semantic index — nightly at 03:05
+
+
+@dataclass(frozen=True)
 class Config:
     paths: PathsConfig
     cache: CacheConfig
@@ -117,6 +123,7 @@ class Config:
     agent: AgentConfig | None
     jobs: JobsConfig
     semantic: SemanticConfig = field(default_factory=SemanticConfig)
+    indexing: IndexingConfig = field(default_factory=IndexingConfig)
 
 
 # ---------------------------------------------------------------------------
@@ -278,6 +285,15 @@ def _parse_jobs(raw: dict | None) -> JobsConfig:
     )
 
 
+def _parse_indexing(raw: dict | None) -> IndexingConfig:
+    if not raw:
+        return IndexingConfig()
+    return IndexingConfig(
+        schedule=str(raw.get("schedule", "0 3 * * *")),
+        semantic_schedule=str(raw.get("semantic_schedule", "5 3 * * *")),
+    )
+
+
 def _parse_semantic(raw: dict | None) -> SemanticConfig:
     if not raw:
         return SemanticConfig()
@@ -317,4 +333,5 @@ def load_config(config_path: Path) -> Config:
         agent=_parse_agent(raw.get("agent")),
         jobs=_parse_jobs(raw.get("jobs")),
         semantic=_parse_semantic(raw.get("semantic")),
+        indexing=_parse_indexing(raw.get("indexing")),
     )

@@ -285,6 +285,71 @@ def promote(
 
 
 # ---------------------------------------------------------------------------
+# cron (sub-app)
+# ---------------------------------------------------------------------------
+
+cron_app = typer.Typer(help="Manage cron entries for scheduled jobs.")
+app.add_typer(cron_app, name="cron")
+
+
+@cron_app.command("show")
+def cron_show(
+    config: Path = typer.Option(
+        _DEFAULT_CONFIG, "--config", "-c", help="Path to config.yaml"
+    ),
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
+) -> None:
+    """Preview the cron entries that would be installed, without making changes."""
+    from obsidian_agent.cron import build_managed_section, find_binary
+
+    cfg = _load(config, verbose)
+    config_path = _resolve_config_path(config)
+    try:
+        binary = find_binary()
+    except FileNotFoundError as exc:
+        console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(1)
+
+    section = build_managed_section(cfg, config_path, binary)
+    console.print(section)
+
+
+@cron_app.command("install")
+def cron_install(
+    config: Path = typer.Option(
+        _DEFAULT_CONFIG, "--config", "-c", help="Path to config.yaml"
+    ),
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
+) -> None:
+    """Install cron entries for all enabled jobs (replaces any existing managed entries)."""
+    from obsidian_agent.cron import find_binary, install
+
+    cfg = _load(config, verbose)
+    config_path = _resolve_config_path(config)
+    try:
+        binary = find_binary()
+    except FileNotFoundError as exc:
+        console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(1)
+
+    new_crontab = install(cfg, config_path, binary)
+    console.print("[bold green]Cron entries installed.[/bold green]")
+    console.print("\n[dim]Installed entries:[/dim]")
+    console.print(new_crontab)
+
+
+@cron_app.command("uninstall")
+def cron_uninstall(
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
+) -> None:
+    """Remove all obsidian-agent managed cron entries."""
+    from obsidian_agent.cron import uninstall
+
+    uninstall()
+    console.print("[bold green]Cron entries removed.[/bold green]")
+
+
+# ---------------------------------------------------------------------------
 # agent (sub-app)
 # ---------------------------------------------------------------------------
 

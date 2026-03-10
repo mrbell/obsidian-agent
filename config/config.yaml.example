@@ -7,6 +7,14 @@ paths:
 cache:
   duckdb_path: ~/.local/share/obsidian-agent/index.duckdb
 
+semantic:
+  model: all-MiniLM-L6-v2
+  max_notes_per_run: 50             # remove or set to null once initial index is built
+
+indexing:
+  schedule: "0 3 * * *"            # structural index — nightly at 03:00
+  semantic_schedule: "5 3 * * *"   # semantic index — nightly at 03:05
+
 delivery:
   email:
     smtp_host: smtp.gmail.com

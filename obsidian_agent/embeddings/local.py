@@ -15,7 +15,7 @@ class LocalEmbedder(Embedder):
     DEFAULT_MODEL = "all-MiniLM-L6-v2"
 
     def __init__(self, model_name: str = DEFAULT_MODEL) -> None:
-        self._model = SentenceTransformer(model_name)
+        self._model = SentenceTransformer(model_name, device="cpu")
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:
