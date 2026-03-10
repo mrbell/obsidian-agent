@@ -125,7 +125,40 @@ what to act on. The promoter stays additive-only.
 
 ---
 
-### 4. Learning Aid
+### 4. Targeted Learning Resources
+
+**What it is**: Based on what the user is actively thinking about or working on, generate
+concrete learning material: a minimal working example of a concept, a set of exercises to
+build on it, or a problem set to work through. Delivered as a vault note.
+
+**Why it's distinctive**: Generic tutorials explain concepts in the abstract. This generates
+material calibrated to *what the user already knows* (from vault concepts and summaries) and
+*what they're currently working on* (from recent note activity). A toy implementation of a
+concept they've been writing about in daily notes, with exercises that extend it, is more
+useful than anything they'd find by searching.
+
+**Examples**:
+- "You've been writing about vector similarity search this week. Here's a 50-line Python
+  implementation from scratch, followed by three exercises: add cosine normalization, swap
+  in a different distance metric, implement approximate nearest neighbors naively."
+- "You noted interest in learning Rust's ownership model. Here's a minimal program that
+  demonstrates the borrow checker, with five progressively harder variations to try."
+- "You've been reading about dynamic programming. Here's a problem set of five problems
+  ordered by difficulty, with the first one solved as a worked example."
+
+**What makes it work**: The vault context tells the job what the user already understands
+(avoid re-explaining high-salience concepts) and what's currently active (choose a topic
+that's live in their thinking, not one they explored six months ago and moved on from).
+
+**Depends on**: Semantic index (recent concepts, note summaries), Claude Code worker with
+web access optional (for pulling in problem ideas), MCP tools
+
+**Status**: Imagined. Composable with the learning aid use case (use case 5) but distinct —
+this is generative and practical rather than retrieval-based.
+
+---
+
+### 5. Learning Aid
 
 **What it is**: For topics the user is actively learning (papers read, books studied, concepts
 being developed), generate periodic retrieval practice — questions, prompts, summaries — to
@@ -265,6 +298,7 @@ Milestone 7 jobs
   └── vault_hygiene_report    — close the loop, suggest improvements
 
 Future jobs (not yet planned)
+  ├── targeted_learning       — toy code + exercises + problem sets for active topics
   ├── learning_aid            — spaced retrieval practice
   ├── idea_expander           — expand implicit items into drafts
   └── concept_prompt_generator — brainstorming seeds
