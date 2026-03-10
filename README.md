@@ -122,6 +122,41 @@ obsidian-agent mcp                # start the MCP server (also usable in Claude 
 | `vault_connections_report` | Weekly | Vault note surfacing old ideas related to recent activity |
 | `vault_hygiene_report` | Bi-weekly | Vault note with suggestions for implied tasks, missing links, orphaned threads |
 
+## Using the MCP server interactively
+
+The MCP server runs automatically during job execution — you don't need to manage it. But you can also register it with Claude Code or Claude Desktop to query your vault interactively in conversation.
+
+First, find the full path to the binary:
+
+```bash
+which obsidian-agent
+```
+
+**Claude Code — all projects**
+
+Add to `~/.claude/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "obsidian-vault": {
+      "command": "/full/path/to/obsidian-agent",
+      "args": ["mcp", "--config", "/home/you/.config/obsidian-agent/config.yaml"]
+    }
+  }
+}
+```
+
+**Claude Code — one project only**
+
+Add the same block to `.claude/mcp.json` inside the project directory instead.
+
+**Claude Desktop**
+
+Add the same block under `mcpServers` in Claude Desktop's settings file (Settings → Developer → Edit Config).
+
+Once registered, you can ask Claude things like "what tasks do I have due this week", "find notes related to X", or "what ideas have I been writing about recently" and it will query your live vault index directly.
+
 ## Safety
 
 - Jobs have no write access to your vault
