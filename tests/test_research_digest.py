@@ -7,9 +7,10 @@ from unittest.mock import MagicMock
 import pytest
 
 from obsidian_agent.agent.worker import WorkerResult
+from obsidian_agent.config import ResearchTopic
 from obsidian_agent.context import JobContext
 from obsidian_agent.index.store import IndexStore
-from obsidian_agent.jobs.research_digest import run, _topic_slug, _validate_output
+from obsidian_agent.jobs.research_digest import run, _topic_slug, _validate_output, _build_prompt
 from obsidian_agent.outputs import Notification, VaultArtifact
 
 
@@ -47,6 +48,7 @@ def _make_ctx(tmp_path: Path, worker=None, topics=_UNSET, also_notify=False):
         ResearchDigestConfig,
     )
 
+    default_topics = [ResearchTopic(name="agentic coding")]
     cfg = Config(
         paths=PathsConfig(
             vault=vault,
@@ -60,7 +62,7 @@ def _make_ctx(tmp_path: Path, worker=None, topics=_UNSET, also_notify=False):
         jobs=JobsConfig(
             research_digest=ResearchDigestConfig(
                 enabled=True,
-                topics=["agentic coding"] if topics is _UNSET else topics,
+                topics=default_topics if topics is _UNSET else topics,
                 lookback_days=7,
                 also_notify=also_notify,
             )
@@ -92,13 +94,13 @@ def _mock_worker(output: str = VALID_OUTPUT, returncode: int = 0) -> MagicMock:
 
 class TestTopicSlug:
     def test_spaces_become_hyphens(self):
-        assert _topic_slug("agentic coding") == "agentic-coding"
+        assert _topic_slug(ResearchTopic(name="agentic coding")) == "agentic-coding"
 
     def test_lowercased(self):
-        assert _topic_slug("Large Language Models") == "large-language-models"
+        assert _topic_slug(ResearchTopic(name="Large Language Models")) == "large-language-models"
 
     def test_special_chars_removed(self):
-        assert _topic_slug("C++ & Rust") == "c-rust"
+        assert _topic_slug(ResearchTopic(name="C++ & Rust")) == "c-rust"
 
 
 # ---------------------------------------------------------------------------
@@ -129,7 +131,7 @@ class TestValidateOutput:
 class TestRunProducesArtifacts:
     def test_produces_one_artifact_per_topic(self, tmp_path: Path):
         worker = _mock_worker()
-        ctx = _make_ctx(tmp_path, worker=worker, topics=["agentic coding", "llms"])
+        ctx = _make_ctx(tmp_path, worker=worker, topics=[ResearchTopic(name="agentic coding"), ResearchTopic(name="llms")])
         worker.run.return_value = WorkerResult(0, VALID_OUTPUT, "")
 
         outputs = run(ctx)
@@ -137,7 +139,7 @@ class TestRunProducesArtifacts:
         assert len(artifacts) == 2
 
     def test_artifact_filename_format(self, tmp_path: Path):
-        ctx = _make_ctx(tmp_path, worker=_mock_worker(), topics=["agentic coding"])
+        ctx = _make_ctx(tmp_path, worker=_mock_worker(), topics=[ResearchTopic(name="agentic coding")])
         outputs = run(ctx)
         artifact = next(o for o in outputs if isinstance(o, VaultArtifact))
         assert artifact.filename == "2026-03-08_research-digest-agentic-coding.md"
@@ -188,7 +190,7 @@ class TestRunRejectsInvalidOutput:
             WorkerResult(0, VALID_OUTPUT, ""),   # topic 1 succeeds
             WorkerResult(1, "", "api error"),    # topic 2 fails
         ]
-        ctx = _make_ctx(tmp_path, worker=worker, topics=["topic-a", "topic-b"])
+        ctx = _make_ctx(tmp_path, worker=worker, topics=[ResearchTopic(name="topic-a"), ResearchTopic(name="topic-b")])
         outputs = run(ctx)
         artifacts = [o for o in outputs if isinstance(o, VaultArtifact)]
         assert len(artifacts) == 1
@@ -208,7 +210,7 @@ class TestRunNotification:
     def test_notification_subject_includes_count(self, tmp_path: Path):
         ctx = _make_ctx(
             tmp_path, worker=_mock_worker(),
-            topics=["topic-a", "topic-b"], also_notify=True,
+            topics=[ResearchTopic(name="topic-a"), ResearchTopic(name="topic-b")], also_notify=True,
         )
         outputs = run(ctx)
         notif = next(o for o in outputs if isinstance(o, Notification))
@@ -248,3 +250,79 @@ class TestRunEdgeCases:
         ctx = _make_ctx(tmp_path, worker=_mock_worker(), topics=[])
         outputs = run(ctx)
         assert outputs == []
+
+
+# ---------------------------------------------------------------------------
+# _build_prompt: structured topic fields
+# ---------------------------------------------------------------------------
+
+class TestBuildPrompt:
+    def _prompt(self, **kwargs) -> str:
+        topic = ResearchTopic(**kwargs)
+        return _build_prompt(topic, lookback_days=7, today_str="2026-03-08", since_str="2026-03-01")
+
+    def test_name_only_contains_topic_name(self):
+        p = self._prompt(name="agentic coding")
+        assert "Topic: agentic coding" in p
+
+    def test_name_only_no_focus_line(self):
+        p = self._prompt(name="agentic coding")
+        assert "Focus:" not in p
+
+    def test_name_only_no_sources_line(self):
+        p = self._prompt(name="agentic coding")
+        assert "Prioritise" not in p
+
+    def test_description_appears_in_prompt(self):
+        p = self._prompt(name="Rust", description="focus on async and tokio")
+        assert "Focus: focus on async and tokio" in p
+
+    def test_sources_appear_in_prompt(self):
+        p = self._prompt(name="ML", sources=["arxiv.org", "distill.pub"])
+        assert "Prioritise these sources: arxiv.org, distill.pub" in p
+
+    def test_all_fields_present(self):
+        p = self._prompt(name="ML", description="interpretability", sources=["arxiv.org"])
+        assert "Topic: ML" in p
+        assert "Focus: interpretability" in p
+        assert "Prioritise these sources: arxiv.org" in p
+
+    def test_heading_uses_topic_name(self):
+        p = self._prompt(name="agentic coding")
+        assert "# Weekly Research Digest: agentic coding" in p
+
+
+# ---------------------------------------------------------------------------
+# Config parsing: ResearchTopic
+# ---------------------------------------------------------------------------
+
+class TestResearchTopicParsing:
+    def _parse(self, topics_yaml):
+        from obsidian_agent.config import _parse_research_digest
+        return _parse_research_digest({"topics": topics_yaml}).topics
+
+    def test_plain_string_becomes_research_topic(self):
+        topics = self._parse(["agentic coding"])
+        assert topics == [ResearchTopic(name="agentic coding")]
+
+    def test_structured_name_only(self):
+        topics = self._parse([{"name": "Rust"}])
+        assert topics == [ResearchTopic(name="Rust")]
+
+    def test_structured_with_description(self):
+        topics = self._parse([{"name": "Rust", "description": "async patterns"}])
+        assert topics[0].description == "async patterns"
+
+    def test_structured_with_sources(self):
+        topics = self._parse([{"name": "ML", "sources": ["arxiv.org", "distill.pub"]}])
+        assert topics[0].sources == ["arxiv.org", "distill.pub"]
+
+    def test_mixed_list(self):
+        topics = self._parse(["plain", {"name": "structured", "description": "desc"}])
+        assert topics[0] == ResearchTopic(name="plain")
+        assert topics[1].name == "structured"
+        assert topics[1].description == "desc"
+
+    def test_slug_uses_topic_name(self):
+        topic = ResearchTopic(name="Large Language Models")
+        assert _topic_slug(topic) == "large-language-models"

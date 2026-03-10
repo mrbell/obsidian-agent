@@ -3,22 +3,31 @@ from __future__ import annotations
 import re
 from datetime import timedelta
 
+from obsidian_agent.config import ResearchTopic
 from obsidian_agent.context import JobContext
 from obsidian_agent.jobs.registry import register
 from obsidian_agent.outputs import JobOutput, Notification, VaultArtifact
 
 
-def _topic_slug(topic: str) -> str:
-    """Convert a topic string to a filename-safe slug."""
-    return re.sub(r"[^a-z0-9]+", "-", topic.lower()).strip("-")
+def _topic_slug(topic: ResearchTopic) -> str:
+    """Convert a topic to a filename-safe slug."""
+    return re.sub(r"[^a-z0-9]+", "-", topic.name.lower()).strip("-")
 
 
-def _build_prompt(topic: str, lookback_days: int, today_str: str, since_str: str) -> str:
+def _build_prompt(topic: ResearchTopic, lookback_days: int, today_str: str, since_str: str) -> str:
+    topic_lines = [f"Topic: {topic.name}"]
+    if topic.description:
+        topic_lines.append(f"Focus: {topic.description}")
+    if topic.sources:
+        topic_lines.append(f"Prioritise these sources: {', '.join(topic.sources)}")
+    topic_block = "\n".join(topic_lines)
+
     return f"""\
 You have access to the user's Obsidian vault through MCP tools and can search the web.
 
 Task:
-Produce a weekly research digest on the topic: {topic}
+Produce a weekly research digest on the following topic:
+{topic_block}
 
 Cover only content published or updated in the last {lookback_days} days (since {since_str}).
 
@@ -28,7 +37,7 @@ new or useful to them.
 
 Required output format (markdown only, no preamble):
 
-# Weekly Research Digest: {topic}
+# Weekly Research Digest: {topic.name}
 **Period**: {since_str} to {today_str}
 
 ## Trends
@@ -75,10 +84,10 @@ def run(ctx: JobContext) -> list[JobOutput]:
     since = ctx.today - timedelta(days=job_cfg.lookback_days)
     since_str = since.isoformat()
 
-    produced: list[str] = []   # topic names that produced an artifact
+    produced: list[tuple[str, str]] = []   # (topic_name, slug) for successfully produced artifacts
 
     for topic in job_cfg.topics:
-        ctx.logger.info("research_digest: processing topic=%r", topic)
+        ctx.logger.info("research_digest: processing topic=%r", topic.name)
 
         prompt = _build_prompt(topic, job_cfg.lookback_days, today_str, since_str)
 
@@ -87,7 +96,7 @@ def run(ctx: JobContext) -> list[JobOutput]:
         if result.returncode != 0:
             ctx.logger.error(
                 "research_digest: worker failed for topic=%r returncode=%d stderr=%s",
-                topic, result.returncode, result.stderr[:300],
+                topic.name, result.returncode, result.stderr[:300],
             )
             continue
 
@@ -95,7 +104,7 @@ def run(ctx: JobContext) -> list[JobOutput]:
             ctx.logger.error(
                 "research_digest: invalid output for topic=%r (empty or missing ## headings). "
                 "output preview: %r",
-                topic, result.output[:500] if result.output else "<empty>",
+                topic.name, result.output[:500] if result.output else "<empty>",
             )
             continue
 
@@ -106,13 +115,13 @@ def run(ctx: JobContext) -> list[JobOutput]:
             filename=filename,
             content=result.output,
         ))
-        produced.append(topic)
-        ctx.logger.info("research_digest: artifact written for topic=%r filename=%s", topic, filename)
+        produced.append((topic.name, slug))
+        ctx.logger.info("research_digest: artifact written for topic=%r filename=%s", topic.name, filename)
 
     if job_cfg.also_notify and produced:
         slug_lines = "\n".join(
-            f"- {topic} → {ctx.today.isoformat()}_research-digest-{_topic_slug(topic)}.md"
-            for topic in produced
+            f"- {name} → {ctx.today.isoformat()}_research-digest-{slug}.md"
+            for name, slug in produced
         )
         outputs.append(Notification(
             subject=f"Research Digest — {len(produced)} topic{'s' if len(produced) != 1 else ''} processed",

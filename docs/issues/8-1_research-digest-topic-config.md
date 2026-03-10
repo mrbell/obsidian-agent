@@ -1,6 +1,6 @@
 # 8-1 — Structured topic config for research_digest
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 8
 
 ## Description

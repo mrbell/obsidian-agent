@@ -111,7 +111,11 @@ def test_full_config_loads(vault: Path, workspace: Path, tmp_path: Path) -> None
 
     assert cfg.jobs.task_notification.lookahead_days == 5
     assert cfg.jobs.task_notification.notify_if_empty is True
-    assert cfg.jobs.research_digest.topics == ["agentic coding", "llms"]
+    from obsidian_agent.config import ResearchTopic
+    assert cfg.jobs.research_digest.topics == [
+        ResearchTopic(name="agentic coding"),
+        ResearchTopic(name="llms"),
+    ]
     assert cfg.jobs.research_digest.lookback_days == 14
 
 

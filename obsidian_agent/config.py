@@ -62,11 +62,18 @@ class TaskNotificationConfig:
 
 
 @dataclass(frozen=True)
+class ResearchTopic:
+    name: str
+    description: str | None = None
+    sources: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class ResearchDigestConfig:
     enabled: bool = True
     schedule: str = "0 18 * * 0"
     lookback_days: int = 7
-    topics: list[str] = field(default_factory=list)
+    topics: list[ResearchTopic] = field(default_factory=list)
     also_notify: bool = True
 
 
@@ -235,6 +242,20 @@ def _parse_task_notification(raw: dict | None) -> TaskNotificationConfig:
     )
 
 
+def _parse_research_topic(raw: Any) -> ResearchTopic:
+    if isinstance(raw, str):
+        return ResearchTopic(name=raw)
+    if isinstance(raw, dict):
+        return ResearchTopic(
+            name=_require(raw, "name", "research_digest.topics[]"),
+            description=raw.get("description"),
+            sources=list(raw.get("sources", [])),
+        )
+    raise ConfigError(
+        f"research_digest topic must be a string or dict, got: {type(raw).__name__}"
+    )
+
+
 def _parse_research_digest(raw: dict | None) -> ResearchDigestConfig:
     if not raw:
         return ResearchDigestConfig()
@@ -242,7 +263,7 @@ def _parse_research_digest(raw: dict | None) -> ResearchDigestConfig:
         enabled=bool(raw.get("enabled", True)),
         schedule=str(raw.get("schedule", "0 18 * * 0")),
         lookback_days=int(raw.get("lookback_days", 7)),
-        topics=list(raw.get("topics", [])),
+        topics=[_parse_research_topic(t) for t in raw.get("topics", [])],
         also_notify=bool(raw.get("also_notify", True)),
     )
 

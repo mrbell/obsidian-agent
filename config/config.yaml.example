@@ -44,9 +44,13 @@ jobs:
     schedule: "0 18 * * 0"            # Sunday 18:00
     lookback_days: 7
     topics:
-      - "agentic coding"
-      - "large language models"
-      - "personal knowledge management"
+      - "agentic coding"              # plain string — works as before
+      - name: "Rust"                  # structured — name only, behaves like plain string
+      - name: "machine learning"      # structured — with optional fields
+        description: "focus on interpretability and alignment"
+        sources:
+          - "arxiv.org"
+          - "distill.pub"
     also_notify: true
 
   vault_connections_report:
