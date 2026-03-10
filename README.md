@@ -1,30 +1,35 @@
 # Obsidian Agent
 
-A scheduled automation framework for [Obsidian](https://obsidian.md) vaults. Runs jobs on a cron schedule to deliver notifications and research digests based on your vault content — without ever modifying your notes.
+A scheduled automation framework for [Obsidian](https://obsidian.md) vaults. Runs jobs on a schedule to deliver notifications, surface forgotten ideas, and generate research digests — without ever modifying your notes.
 
 ## What it does
 
-**Task notifications** — Every morning, get an email listing tasks with upcoming or overdue due dates, pulled directly from your vault. No manual review required.
+**Task notifications** — Each morning, get an email listing tasks with upcoming or overdue due dates pulled from your vault.
 
-**Research digests** — Weekly, get a markdown report on configured topics (e.g. "agentic coding", "personal knowledge management") deposited into your vault's inbox. Claude searches the web and optionally consults your existing notes to surface what's genuinely new.
+**Research digests** — Weekly, Claude searches the web and consults your existing notes to produce a markdown report on topics you care about (e.g. "agentic coding", "personal knowledge management"), deposited directly into your vault.
 
-More job types are planned.
+**Vault connections** — Weekly, surface old notes and ideas that connect to what you've been writing about recently. Corrects the recency bias that causes good ideas to be forgotten.
+
+**Vault hygiene** — Periodically, get a report of suggestions: implied tasks you never formalized, ideas scattered across daily notes that might deserve their own note, and semantically related notes that aren't linked to each other. Suggestions only — nothing is changed automatically.
+
+Your existing notes are never modified, moved, or deleted. All outputs are either emails or new notes placed in a `BotInbox/` folder inside your vault.
 
 ## How it works
 
-Obsidian Agent reads your vault, indexes it into a local database, and runs jobs against that index. All automation outputs are either:
-- **Emails** sent to you directly
-- **New notes** placed in a designated `BotInbox/` folder inside your vault
+Obsidian Agent maintains two indexes of your vault:
 
-Your existing notes are never modified, moved, or deleted. The system is additive-only.
+- A **structural index** (DuckDB) — notes, tasks, tags, links, headings. Fast to build, updated before each job run.
+- A **semantic index** — paragraph-level embeddings and LLM-extracted concepts, entities, and implicit ideas. Built incrementally on a nightly schedule.
+
+Jobs query these indexes and optionally invoke Claude (via Claude Code) to produce outputs. A local MCP server gives Claude read-only access to your vault — it never touches the filesystem directly.
 
 ## Requirements
 
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/)
 - An Obsidian vault
+- A [Claude](https://claude.ai) subscription (for LLM-assisted jobs)
 - A Gmail or Fastmail account (for email delivery)
-- A [Claude](https://claude.ai) subscription (for research digest jobs)
 
 ## Setup
 
@@ -39,14 +44,15 @@ uv sync
 **2. Configure**
 
 ```bash
+mkdir -p ~/.config/obsidian-agent
 cp config/config.yaml.example ~/.config/obsidian-agent/config.yaml
 ```
 
-Edit the config file to set your vault path, email settings, and job preferences.
+Edit the config to set your vault path, SMTP settings, and job preferences. See `config/config.yaml.example` for all available options.
 
 **3. Set your email password**
 
-Add to `~/.bashrc` (or equivalent):
+Add to `~/.bashrc` or equivalent — never put passwords in the config file:
 
 ```bash
 export OBSIDIAN_AGENT_SMTP_PASSWORD="your-app-password"
@@ -54,34 +60,71 @@ export OBSIDIAN_AGENT_SMTP_PASSWORD="your-app-password"
 
 For Gmail: enable 2FA, then generate an app password at [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords).
 
-**4. Build the index**
+**4. Build the structural index**
 
 ```bash
-obsidian-agent index
-obsidian-agent status   # verify it looks right
+uv run obsidian-agent index
+uv run obsidian-agent status   # verify the note count looks right
 ```
 
-**5. Run a job manually**
+**5. Build the semantic index**
+
+The semantic index involves local embeddings and one LLM call per note. On a large vault, use `max_notes_per_run` in your config to throttle the initial build and run it in batches over a few nights:
+
+```yaml
+semantic:
+  max_notes_per_run: 50
+```
+
+Then run:
 
 ```bash
-obsidian-agent run task_notification
+uv run obsidian-agent index-semantic
 ```
 
-**6. Schedule with cron**
+Repeat nightly (or via cron — see below) until caught up. Remove `max_notes_per_run` once the initial build is complete.
 
-```cron
-0 7 * * *   obsidian-agent index && obsidian-agent run task_notification
-0 18 * * 0  obsidian-agent index && obsidian-agent run research_digest && obsidian-agent promote
+**6. Test a job**
+
+```bash
+uv run obsidian-agent run task_notification
 ```
+
+**7. Schedule with cron**
+
+```bash
+uv run obsidian-agent cron install
+```
+
+This reads your config and installs cron entries for all enabled jobs, including nightly index runs. Preview what will be installed first with `cron show`.
+
+## Commands
+
+```
+obsidian-agent index              # rebuild structural index
+obsidian-agent index-semantic     # update semantic index (nightly)
+obsidian-agent run <job>          # run a job by name
+obsidian-agent promote            # copy outbox artifacts into vault BotInbox
+obsidian-agent status             # show index stats and pending outbox items
+obsidian-agent cron show          # preview cron entries for enabled jobs
+obsidian-agent cron install       # install cron entries
+obsidian-agent cron uninstall     # remove cron entries
+obsidian-agent agent test         # verify Claude is reachable
+obsidian-agent mcp                # start the MCP server (also usable in Claude Desktop)
+```
+
+## Available jobs
+
+| Job | Schedule | Output |
+|---|---|---|
+| `task_notification` | Daily | Email with upcoming and overdue tasks |
+| `research_digest` | Weekly | Vault note per configured topic |
+| `vault_connections_report` | Weekly | Vault note surfacing old ideas related to recent activity |
+| `vault_hygiene_report` | Bi-weekly | Vault note with suggestions for implied tasks, missing links, orphaned threads |
 
 ## Safety
 
-Obsidian Agent is designed to be safe to run against a vault you care about:
-
 - Jobs have no write access to your vault
-- The only component that writes into the vault is the `promote` command, and it only creates new files under `BotInbox/`
+- The only component that writes into the vault is `promote`, and it only creates new files under `BotInbox/`
+- The MCP server exposes read-only tools — no write operations are possible through it
 - No existing note is ever modified or deleted
-
-## Status
-
-This project is under active development. Task notifications are working. Research digest and MCP server support are in progress.
