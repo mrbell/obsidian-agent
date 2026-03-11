@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from dotenv import load_dotenv
 
 
 class ConfigError(Exception):
@@ -336,6 +337,8 @@ def load_config(config_path: Path) -> Config:
     Validation is structural only — components validate their own prerequisites
     at instantiation time (lazy validation).
     """
+    load_dotenv(config_path.parent / ".env")
+
     if not config_path.exists():
         raise ConfigError(f"Config file not found: {config_path}")
 
