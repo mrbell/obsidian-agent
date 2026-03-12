@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "obsidian-vault": {
+      "command": "/full/path/to/obsidian-agent",
+      "args": ["mcp", "--config", "/home/you/.config/obsidian-agent/config.yaml"]
+    }
+  }
+}
