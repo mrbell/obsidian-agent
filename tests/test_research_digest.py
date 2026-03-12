@@ -287,6 +287,28 @@ class TestBuildPrompt:
         assert "Focus: interpretability" in p
         assert "Prioritise these sources: arxiv.org" in p
 
+    def test_feeds_appear_in_prompt(self):
+        p = self._prompt(name="ML", feeds=["https://arxiv.org/rss/cs.LG"])
+        assert "fetch_feed" in p
+        assert "https://arxiv.org/rss/cs.LG" in p
+
+    def test_no_feeds_no_fetch_section(self):
+        p = self._prompt(name="ML")
+        assert "fetch_feed" not in p
+
+    def test_all_fields_including_feeds(self):
+        p = self._prompt(
+            name="ML",
+            description="interpretability",
+            sources=["distill.pub"],
+            feeds=["https://arxiv.org/rss/cs.LG", "https://arxiv.org/rss/cs.AI"],
+        )
+        assert "fetch_feed" in p
+        assert "https://arxiv.org/rss/cs.LG" in p
+        assert "https://arxiv.org/rss/cs.AI" in p
+        assert "Prioritise these sources: distill.pub" in p
+        assert "Focus: interpretability" in p
+
     def test_heading_uses_topic_name(self):
         p = self._prompt(name="agentic coding")
         assert "# Weekly Research Digest: agentic coding" in p
@@ -316,6 +338,14 @@ class TestResearchTopicParsing:
     def test_structured_with_sources(self):
         topics = self._parse([{"name": "ML", "sources": ["arxiv.org", "distill.pub"]}])
         assert topics[0].sources == ["arxiv.org", "distill.pub"]
+
+    def test_structured_with_feeds(self):
+        topics = self._parse([{"name": "ML", "feeds": ["https://arxiv.org/rss/cs.LG"]}])
+        assert topics[0].feeds == ["https://arxiv.org/rss/cs.LG"]
+
+    def test_plain_string_has_empty_feeds(self):
+        topics = self._parse(["agentic coding"])
+        assert topics[0].feeds == []
 
     def test_mixed_list(self):
         topics = self._parse(["plain", {"name": "structured", "description": "desc"}])

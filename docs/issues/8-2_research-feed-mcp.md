@@ -1,6 +1,6 @@
 # 8-2 — Feed MCP tool for research jobs
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: [8 Research Enhancements](8_research-enhancements.md)
 **Depends on**: 8-1
 

@@ -22,6 +22,14 @@ def _build_prompt(topic: ResearchTopic, lookback_days: int, today_str: str, sinc
         topic_lines.append(f"Prioritise these sources: {', '.join(topic.sources)}")
     topic_block = "\n".join(topic_lines)
 
+    feed_section = ""
+    if topic.feeds:
+        feed_urls = "\n".join(f"  - {url}" for url in topic.feeds)
+        feed_section = (
+            f"Fetch the following feeds using the fetch_feed tool and include relevant "
+            f"items from them:\n{feed_urls}\n\n"
+        )
+
     return f"""\
 You have access to the user's Obsidian vault through MCP tools and can search the web.
 
@@ -29,7 +37,7 @@ Task:
 Produce a weekly research digest on the following topic:
 {topic_block}
 
-Cover only content published or updated in the last {lookback_days} days (since {since_str}).
+{feed_section}Cover only content published or updated in the last {lookback_days} days (since {since_str}).
 
 You may use the vault MCP tools to understand what the user already knows or finds
 interesting about this topic — look for relevant notes to inform what is genuinely

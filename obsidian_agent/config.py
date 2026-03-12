@@ -67,6 +67,7 @@ class ResearchTopic:
     name: str
     description: str | None = None
     sources: list[str] = field(default_factory=list)
+    feeds: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -251,6 +252,7 @@ def _parse_research_topic(raw: Any) -> ResearchTopic:
             name=_require(raw, "name", "research_digest.topics[]"),
             description=raw.get("description"),
             sources=list(raw.get("sources", [])),
+            feeds=list(raw.get("feeds", [])),
         )
     raise ConfigError(
         f"research_digest topic must be a string or dict, got: {type(raw).__name__}"

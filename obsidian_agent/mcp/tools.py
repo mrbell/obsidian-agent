@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import urllib.error
+import urllib.request
+import xml.etree.ElementTree as ET
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -301,6 +304,66 @@ def get_stale_concepts_mcp(
         }
         for c in concepts
     ]
+
+
+# ---------------------------------------------------------------------------
+# Feed tool (8-2)
+# ---------------------------------------------------------------------------
+
+def _parse_rss(root: ET.Element, max_items: int) -> list[dict[str, Any]]:
+    items = []
+    for item in root.findall("channel/item")[:max_items]:
+        items.append({
+            "title": (item.findtext("title") or "").strip(),
+            "link": (item.findtext("link") or "").strip(),
+            "published": (item.findtext("pubDate") or "").strip(),
+            "summary": (item.findtext("description") or "").strip(),
+        })
+    return items
+
+
+def _parse_atom(root: ET.Element, max_items: int) -> list[dict[str, Any]]:
+    ns = "http://www.w3.org/2005/Atom"
+    items = []
+    for entry in root.findall(f"{{{ns}}}entry")[:max_items]:
+        link_el = entry.find(f"{{{ns}}}link")
+        link = link_el.get("href", "") if link_el is not None else ""
+        items.append({
+            "title": (entry.findtext(f"{{{ns}}}title") or "").strip(),
+            "link": link,
+            "published": (
+                entry.findtext(f"{{{ns}}}published")
+                or entry.findtext(f"{{{ns}}}updated")
+                or ""
+            ).strip(),
+            "summary": (
+                entry.findtext(f"{{{ns}}}summary")
+                or entry.findtext(f"{{{ns}}}content")
+                or ""
+            ).strip(),
+        })
+    return items
+
+
+def fetch_feed(url: str, max_items: int = 50) -> list[dict[str, Any]]:
+    """Fetch and parse an RSS 2.0 or Atom 1.0 feed. Returns up to max_items entries."""
+    try:
+        with urllib.request.urlopen(url, timeout=15) as resp:
+            data = resp.read()
+    except urllib.error.URLError as exc:
+        raise ValueError(f"Failed to fetch feed {url!r}: {exc}") from exc
+
+    try:
+        root = ET.fromstring(data)
+    except ET.ParseError as exc:
+        raise ValueError(f"Failed to parse feed from {url!r}: not valid XML: {exc}") from exc
+
+    tag = root.tag
+    if tag == "rss" or tag.endswith("}rss"):
+        return _parse_rss(root, max_items)
+    if tag in ("{http://www.w3.org/2005/Atom}feed", "feed"):
+        return _parse_atom(root, max_items)
+    raise ValueError(f"Unrecognised feed format at {url!r}: root element is <{tag}>")
 
 
 def get_implicit_items_mcp(

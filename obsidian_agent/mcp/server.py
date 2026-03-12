@@ -167,6 +167,16 @@ def create_server(
         return _tools.get_stale_concepts_mcp(store, inactive_before=inactive_before, n=n)
 
     @mcp.tool()
+    def fetch_feed(url: str) -> list[dict[str, Any]]:
+        """Fetch and parse an RSS 2.0 or Atom 1.0 feed URL.
+
+        Returns up to 50 entries, each with: title, link, published, summary.
+        Raises an error if the URL is unreachable or not a recognised feed format.
+        Use the 'published' field to filter by recency.
+        """
+        return _tools.fetch_feed(url)
+
+    @mcp.tool()
     def get_implicit_items(
         type: str | None = None,
         since: str | None = None,

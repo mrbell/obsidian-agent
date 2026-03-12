@@ -48,9 +48,11 @@ jobs:
       - name: "Rust"                  # structured — name only, behaves like plain string
       - name: "machine learning"      # structured — with optional fields
         description: "focus on interpretability and alignment"
+        feeds:
+          - "https://arxiv.org/rss/cs.LG"
+          - "https://arxiv.org/rss/cs.AI"
         sources:
-          - "arxiv.org"
-          - "distill.pub"
+          - "distill.pub"          # web search hint for sources without feeds
     also_notify: true
 
   vault_connections_report:
