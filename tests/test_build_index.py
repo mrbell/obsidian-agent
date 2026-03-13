@@ -246,3 +246,49 @@ class TestRenamedNote:
         assert stats.renamed == 1
         assert stats.added == 0
         assert stats.deleted == 0
+
+
+# ---------------------------------------------------------------------------
+# Excluded paths
+# ---------------------------------------------------------------------------
+
+class TestExcludedPaths:
+    def test_excluded_folder_not_indexed(self, vault: Path, db_path: Path) -> None:
+        (vault / "note.md").write_text("# Normal")
+        archive = vault / "Archive"
+        archive.mkdir()
+        (archive / "old.md").write_text("# Old")
+
+        with IndexStore(db_path) as store:
+            stats = build_index(vault, store, exclude_paths=["Archive"])
+
+        assert stats.added == 1
+        assert stats.scanned == 1
+
+    def test_excluded_folder_removed_from_db_on_next_run(
+        self, vault: Path, db_path: Path
+    ) -> None:
+        archive = vault / "Archive"
+        archive.mkdir()
+        (archive / "old.md").write_text("# Old")
+
+        # First run without exclusion — note gets indexed
+        with IndexStore(db_path) as store:
+            build_index(vault, store)
+            assert _note_row(store, "Archive/old.md") is not None
+
+        # Second run with exclusion — treated as deleted
+        with IndexStore(db_path) as store:
+            stats = build_index(vault, store, exclude_paths=["Archive"])
+            assert _note_row(store, "Archive/old.md") is None
+        assert stats.deleted == 1
+
+    def test_non_excluded_subfolder_still_indexed(self, vault: Path, db_path: Path) -> None:
+        sub = vault / "Projects"
+        sub.mkdir()
+        (sub / "note.md").write_text("# Project note")
+
+        with IndexStore(db_path) as store:
+            stats = build_index(vault, store, exclude_paths=["Archive"])
+
+        assert stats.added == 1

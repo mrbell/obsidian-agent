@@ -182,7 +182,11 @@ def _insert_derived(store: IndexStore, note_relpath: str, parsed: ParsedNote) ->
 # Public API
 # ---------------------------------------------------------------------------
 
-def build_index(vault_path: Path, store: IndexStore) -> IndexStats:
+def build_index(
+    vault_path: Path,
+    store: IndexStore,
+    exclude_paths: list[str] | None = None,
+) -> IndexStats:
     """Incrementally update the DuckDB index from the vault on disk.
 
     All mutations run inside a single transaction. Returns stats describing
@@ -207,7 +211,7 @@ def build_index(vault_path: Path, store: IndexStore) -> IndexStats:
     conn.execute("BEGIN TRANSACTION")
     try:
         # --- Step 1 & 2: walk files ---
-        for abs_path in iter_markdown_files(vault_path):
+        for abs_path in iter_markdown_files(vault_path, exclude_paths):
             note_relpath = abs_path.relative_to(vault_path).as_posix()
             seen_paths.add(note_relpath)
             stat = abs_path.stat()

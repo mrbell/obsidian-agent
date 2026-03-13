@@ -122,6 +122,7 @@ class SemanticConfig:
 class IndexingConfig:
     schedule: str = "0 3 * * *"           # structural index — nightly at 03:00
     semantic_schedule: str = "5 3 * * *"  # semantic index — nightly at 03:05
+    exclude_paths: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -315,6 +316,7 @@ def _parse_indexing(raw: dict | None) -> IndexingConfig:
     return IndexingConfig(
         schedule=str(raw.get("schedule", "0 3 * * *")),
         semantic_schedule=str(raw.get("semantic_schedule", "5 3 * * *")),
+        exclude_paths=list(raw.get("exclude_paths", [])),
     )
 
 

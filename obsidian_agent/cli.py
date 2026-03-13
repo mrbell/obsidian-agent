@@ -62,7 +62,7 @@ def index(
     cfg.paths.state_dir.mkdir(parents=True, exist_ok=True)
 
     with IndexStore(cfg.cache.duckdb_path) as store:
-        stats = build_index(cfg.paths.vault, store)
+        stats = build_index(cfg.paths.vault, store, cfg.indexing.exclude_paths)
 
     log.info(
         "Index complete. scanned=%d added=%d updated=%d renamed=%d deleted=%d unchanged=%d",
