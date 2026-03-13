@@ -60,7 +60,18 @@ class ParsedNote:
 _DAILY_NOTE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}\.md$")
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)")
 _TASK_RE = re.compile(r"^\s*[-*+] \[(.)\] (.*)")
-_DUE_DATE_RE = re.compile(r"📅\s*(\d{4}-\d{2}-\d{2})")
+# Matches both 📅 and 📆, then one of:
+#   YYYY-MM-DD  or  YYYY/MM/DD
+#   MM/DD/YYYY  or  MM-DD-YYYY  (and single-digit variants)
+#   MM/DD       or  MM-DD       (current year implied)
+_DUE_DATE_RE = re.compile(
+    r"[📅📆]\s*"
+    r"(\d{4}[-/]\d{1,2}[-/]\d{1,2}"  # YYYY-M-D
+    r"|\d{1,2}[-/]\d{1,2}[-/]\d{4}"  # M-D-YYYY
+    r"|\d{1,2}[-/]\d{1,2})"          # M-D  (no year)
+)
+
+_FULL_DATE_FORMATS = ["%Y-%m-%d", "%Y/%m/%d", "%m/%d/%Y", "%m-%d-%Y"]
 _WIKILINK_RE = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
 _MD_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 # Inline tags: #word, #word/subword — not preceded by # or word char
@@ -88,10 +99,20 @@ def _parse_due_date(text: str) -> date | None:
     m = _DUE_DATE_RE.search(text)
     if not m:
         return None
-    try:
-        return datetime.strptime(m.group(1), "%Y-%m-%d").date()
-    except ValueError:
-        return None
+    raw = m.group(1)
+    for fmt in _FULL_DATE_FORMATS:
+        try:
+            return datetime.strptime(raw, fmt).date()
+        except ValueError:
+            continue
+    sep = "/" if "/" in raw else "-"
+    parts = raw.split(sep)
+    if len(parts) == 2:
+        try:
+            return date(date.today().year, int(parts[0]), int(parts[1]))
+        except ValueError:
+            pass
+    return None
 
 
 def _parse_frontmatter(lines: list[str]) -> tuple[dict[str, Any], int]:

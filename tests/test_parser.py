@@ -166,6 +166,32 @@ class TestTaskDueDate:
         assert len(note.tasks) == 1
         assert note.tasks[0].status == "open"
 
+    # Tear-off calendar emoji (📆)
+    def test_tearoff_calendar_emoji(self):
+        note = _note("- [ ] Do thing 📆 2026-03-15\n")
+        assert note.tasks[0].due_date == date(2026, 3, 15)
+
+    # Alternate date formats
+    def test_iso_with_slash_separator(self):
+        note = _note("- [ ] Task 📅 2026/03/15\n")
+        assert note.tasks[0].due_date == date(2026, 3, 15)
+
+    def test_mm_dd_yyyy_slash(self):
+        note = _note("- [ ] Task 📆 03/15/2026\n")
+        assert note.tasks[0].due_date == date(2026, 3, 15)
+
+    def test_mm_dd_yyyy_dash(self):
+        note = _note("- [ ] Task 📆 03-15-2026\n")
+        assert note.tasks[0].due_date == date(2026, 3, 15)
+
+    def test_partial_date_slash_uses_current_year(self):
+        note = _note("- [ ] Task 📆 03/15\n")
+        assert note.tasks[0].due_date == date(date.today().year, 3, 15)
+
+    def test_partial_date_dash_uses_current_year(self):
+        note = _note("- [ ] Task 📆 03-15\n")
+        assert note.tasks[0].due_date == date(date.today().year, 3, 15)
+
 
 class TestTaskLineNumbers:
     def test_task_line_number(self):
