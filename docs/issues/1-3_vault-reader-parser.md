@@ -44,8 +44,9 @@ Status mapping from Obsidian checkbox syntax:
 - `- [/]` → `in_progress`
 - `- [-]` → `cancelled`
 
-Due date: parse `📅 YYYY-MM-DD` anywhere in the task text.
-Return as `datetime.date` object; `None` if absent.
+Due date: parse `📅` or `📆` emoji followed by a date anywhere in the task text.
+Accepted formats: `YYYY-MM-DD`, `YYYY/MM/DD`, `MM/DD/YYYY`, `MM-DD-YYYY`, `MM/DD`, `MM-DD`
+(last two imply the current year). Return as `datetime.date`; `None` if absent.
 
 ### Implementation approach
 
@@ -58,7 +59,7 @@ Unit tests covering:
 - Note with frontmatter, headings, tasks, wikilinks, inline tags
 - Daily note detection
 - Task status variants (`[ ]`, `[x]`, `[/]`, `[-]`)
-- Due date extraction from `📅 YYYY-MM-DD`
+- Due date extraction from `📅`/`📆` + flexible date format
 - Task with no due date
 - Note with no frontmatter
 - Empty note

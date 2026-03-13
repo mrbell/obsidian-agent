@@ -132,7 +132,9 @@ Walks the vault directory and parses markdown files. Extracts:
 - Word count
 - Whether the note is a daily note (filename matches `YYYY-MM-DD.md`)
 
-Task due date format: Tasks plugin emoji syntax — `- [ ] Description 📅 2026-03-10`.
+Task due date format: either `📅` or `📆` emoji followed by a date in any of these formats:
+`YYYY-MM-DD`, `YYYY/MM/DD`, `MM/DD/YYYY`, `MM-DD-YYYY`, `MM/DD`, `MM-DD`.
+The last two imply the current year. Example: `- [ ] Description 📆 03/15/2026`.
 
 The vault directory is opened read-only. No write operations are performed here.
 
@@ -317,7 +319,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     line_no         INTEGER,
     status          TEXT,     -- 'open' | 'done' | 'cancelled' | 'in_progress'
     text            TEXT,
-    due_date        DATE      -- NULL if not specified; parsed from 📅 YYYY-MM-DD
+    due_date        DATE      -- NULL if not specified; parsed from 📅/📆 emoji + flexible date format
 );
 
 CREATE TABLE IF NOT EXISTS links (
@@ -907,7 +909,7 @@ each component independently testable.
 - Config loading and validation
 - Logging setup
 - Vault reader + parser (tasks, headings, links, tags, frontmatter, daily note detection,
-  due date parsing from `📅 YYYY-MM-DD` format)
+  due date parsing from `📅`/`📆` emoji + flexible date format)
 - DuckDB schema and store
 - Incremental index builder
 - CLI: `index`, `status`
