@@ -126,30 +126,32 @@ obsidian-agent mcp                # start the MCP server (also usable in Claude 
 
 The MCP server runs automatically during job execution — you don't need to manage it. But you can also register it with Claude Code or Claude Desktop to query your vault interactively in conversation.
 
-First, find the full path to the binary:
+**Claude Code — this project only**
 
-```bash
-which obsidian-agent
-```
-
-**Claude Code — all projects**
-
-Add to `~/.claude/mcp.json`:
+A `.mcp.json` is already included at the project root. Update the `--directory` path if you
+cloned the repo elsewhere:
 
 ```json
 {
   "mcpServers": {
     "obsidian-vault": {
-      "command": "/full/path/to/obsidian-agent",
-      "args": ["mcp", "--config", "/home/you/.config/obsidian-agent/config.yaml"]
+      "type": "stdio",
+      "command": "uv",
+      "args": ["--directory", "/path/to/obsidian-agent", "run", "obsidian-agent", "mcp"]
     }
   }
 }
 ```
 
-**Claude Code — one project only**
+Claude Code will prompt you to approve the server the first time you open the project.
 
-Add the same block to `.claude/mcp.json` inside the project directory instead.
+**Claude Code — all projects (global)**
+
+Run:
+
+```bash
+claude mcp add obsidian-vault --scope user -- uv --directory /path/to/obsidian-agent run obsidian-agent mcp
+```
 
 **Claude Desktop**
 

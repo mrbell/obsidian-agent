@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "obsidian-vault": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["--directory", "/home/mbell/Code/obsidian-agent", "run", "obsidian-agent", "mcp"]
+    }
+  }
+}
