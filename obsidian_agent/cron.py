@@ -124,7 +124,8 @@ def build_managed_section(
         lines.append(
             f"{job_cfg.schedule} "
             f"{cmd} index {cfg_flag} && "
-            f"{cmd} run {job_name} {cfg_flag} "
+            f"{cmd} run {job_name} {cfg_flag} && "
+            f"{cmd} promote {cfg_flag} "
             f">> {log_dir}/{job_name}.log 2>&1"
         )
 

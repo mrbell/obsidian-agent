@@ -62,6 +62,9 @@ Required output format (markdown only, no preamble):
 
 If fewer than 3 relevant articles are found for the period, say so explicitly rather \
 than padding with older content.
+
+Your entire response must be the markdown document above and nothing else. Do not add \
+any explanation, commentary, or closing remarks after the markdown.
 """
 
 

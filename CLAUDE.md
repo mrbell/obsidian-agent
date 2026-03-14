@@ -78,8 +78,40 @@ uv run obsidian-agent run <job>      # run a named job
 uv run obsidian-agent promote        # promote outbox artifacts to vault
 uv run obsidian-agent mcp            # start MCP server
 uv run obsidian-agent agent test     # verify Claude Code is available
+uv run obsidian-agent agent test --mcp  # also verify MCP vault connectivity
 uv run obsidian-agent status         # show index and outbox status
 
 uv run pytest                        # run all tests
 uv run pytest tests/test_parser.py   # run a specific test file
 ```
+
+---
+
+## Log Locations
+
+All logs are under `~/.local/share/obsidian-agent/`:
+
+```
+logs/obsidian-agent.log      # main rotating log (all commands)
+research_digest.log          # research_digest job runs
+task_notification.log        # task_notification job runs
+vault_connections_report.log # vault_connections_report job runs
+vault_hygiene_report.log     # vault_hygiene_report job runs
+index.log                    # structural index runs
+index-semantic.log           # semantic index runs
+vault-backup.log             # nightly vault backup script
+```
+
+The main log (`logs/obsidian-agent.log`) is the best starting point for diagnosing failures — it captures all job runs with timestamps, errors, and worker output previews.
+
+---
+
+## DuckDB Concurrency
+
+Only `index` and `index-semantic` open the DB in **write mode**. All other commands (`run`, `status`, MCP server) open it **read-only** (`IndexStore(path, read_only=True)`). This allows multiple concurrent readers (e.g. a job and its MCP server subprocess) without lock conflicts.
+
+---
+
+## MCP Tool Permissions
+
+When adding a new tool to `mcp/server.py`, also add it to `_MCP_TOOLS` in `agent/worker.py`. This list is used to build the `--allowedTools` flag for headless Claude Code workers. If a tool is missing from the list, the worker cannot call it (permission denied in headless mode, with no error — the model just says the tool is unavailable).

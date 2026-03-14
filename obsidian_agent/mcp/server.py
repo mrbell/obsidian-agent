@@ -24,7 +24,7 @@ def create_server(
     search_similar call (model download ~80MB on first use).
     """
     mcp = FastMCP("obsidian-vault")
-    store = IndexStore(db_path)
+    store = IndexStore(db_path, read_only=True)
 
     # Lazy embedder: initialized once on first semantic search call
     _embedder_holder: list[Any] = [None]

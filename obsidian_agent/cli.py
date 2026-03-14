@@ -117,6 +117,7 @@ def index_semantic(
             cfg=cfg.agent,
             vault_path=cfg.paths.vault,
             db_path=cfg.cache.duckdb_path,
+            config_path=_resolve_config_path(config),
         )
 
     with IndexStore(cfg.cache.duckdb_path) as store:
@@ -362,9 +363,14 @@ def agent_test(
     config: Path = typer.Option(
         _DEFAULT_CONFIG, "--config", "-c", help="Path to config.yaml"
     ),
+    mcp: bool = typer.Option(False, "--mcp", help="Also verify MCP vault connectivity"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable debug logging"),
 ) -> None:
-    """Verify Claude Code is installed and able to produce output."""
+    """Verify Claude Code is installed and able to produce output.
+
+    With --mcp, also verifies the worker can connect to the vault MCP server
+    and call a vault tool successfully.
+    """
     from obsidian_agent.agent.worker import ClaudeCodeWorker
 
     cfg = _load(config, verbose)
@@ -380,9 +386,10 @@ def agent_test(
         cfg=cfg.agent,
         vault_path=cfg.paths.vault,
         db_path=cfg.cache.duckdb_path,
+        config_path=_resolve_config_path(config),
     )
 
-    console.print("Running agent smoke test...")
+    console.print("Running agent smoke test (no MCP)...")
     result = worker.run(
         "Say the word READY and nothing else.",
         web_search=False,
@@ -399,6 +406,25 @@ def agent_test(
             f"stderr={result.stderr[:200]!r}"
         )
         raise typer.Exit(1)
+
+    if mcp:
+        console.print("Running MCP connectivity test...")
+        result = worker.run(
+            "Call the get_vault_stats MCP tool and report the total note count "
+            "as a single line: 'NOTE_COUNT: <n>'. Nothing else.",
+            web_search=False,
+            with_mcp=True,
+        )
+        if result.returncode == 0 and "NOTE_COUNT:" in result.output:
+            console.print(f"[bold green]PASS[/bold green]  MCP reachable. {result.output.strip()!r}")
+        else:
+            console.print(
+                f"[bold red]FAIL[/bold red]  MCP test failed.  "
+                f"exit={result.returncode}  "
+                f"output={result.output.strip()!r}  "
+                f"stderr={result.stderr[:300]!r}"
+            )
+            raise typer.Exit(1)
 
 
 # ---------------------------------------------------------------------------
@@ -465,12 +491,13 @@ def run(
             cfg=cfg.agent,
             vault_path=cfg.paths.vault,
             db_path=cfg.cache.duckdb_path,
+            config_path=_resolve_config_path(config),
         )
 
     cfg.paths.state_dir.mkdir(parents=True, exist_ok=True)
     cfg.paths.outbox.mkdir(parents=True, exist_ok=True)
 
-    with IndexStore(cfg.cache.duckdb_path) as store:
+    with IndexStore(cfg.cache.duckdb_path, read_only=True) as store:
         ctx = JobContext(
             store=store,
             config=cfg,

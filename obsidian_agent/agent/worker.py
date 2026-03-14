@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
-import os
+import shutil
 import subprocess
+import sys
 import tempfile
 import uuid
 from dataclasses import dataclass
@@ -12,6 +13,21 @@ from pathlib import Path
 from obsidian_agent.config import AgentConfig
 
 log = logging.getLogger(__name__)
+
+# MCP server name as declared in the mcpServers config written by this worker.
+_MCP_SERVER = "obsidian-vault"
+
+# All tools exposed by the obsidian-vault MCP server.  Must be listed explicitly
+# in --allowedTools; wildcards (mcp__server__*) have a known Claude Code bug where
+# they silently fail.  Update this list when tools are added or removed in mcp/server.py.
+_MCP_TOOLS = [
+    "search_notes", "get_note", "list_notes", "get_daily_notes",
+    "query_tasks", "get_note_links", "find_notes_by_tag", "get_vault_stats",
+    "search_similar", "get_note_summary", "find_related_notes", "list_concepts",
+    "search_by_concept", "get_entity_context", "get_recent_concepts",
+    "get_stale_concepts", "fetch_feed", "get_implicit_items",
+]
+_MCP_ALLOWED = ",".join(f"mcp__{_MCP_SERVER}__{t}" for t in _MCP_TOOLS)
 
 
 @dataclass(frozen=True)
@@ -31,6 +47,7 @@ class ClaudeCodeWorker:
     cfg: AgentConfig
     vault_path: Path
     db_path: Path
+    config_path: Path | None = None
 
     def run(
         self,
@@ -55,11 +72,14 @@ class ClaudeCodeWorker:
 
             # MCP server config
             if with_mcp:
+                mcp_args = ["mcp"]
+                if self.config_path:
+                    mcp_args += ["--config", str(self.config_path)]
                 mcp_config = {
                     "mcpServers": {
                         "obsidian-vault": {
-                            "command": "obsidian-agent",
-                            "args": ["mcp"],
+                            "command": str(_find_mcp_binary()),
+                            "args": mcp_args,
                         }
                     }
                 }
@@ -70,9 +90,17 @@ class ClaudeCodeWorker:
                 cmd += ["--mcp-config", str(mcp_config_path)]
 
             # In headless mode there is no user to approve permission prompts.
-            # Explicitly allow or disallow web tools based on the job's needs.
-            if web_search:
+            # --allowedTools creates an explicit allowlist (MCP tools are always
+            # included when this flag is used).  --disallowed-tools blocks specific
+            # tools but leaves everything else requiring permission — which in headless
+            # mode means MCP tools also get blocked.  So: use --allowedTools whenever
+            # MCP is active; only fall back to --disallowed-tools for pure non-MCP runs.
+            if web_search and with_mcp:
+                cmd += ["--allowedTools", f"WebSearch,WebFetch,{_MCP_ALLOWED}"]
+            elif web_search:
                 cmd += ["--allowedTools", "WebSearch,WebFetch"]
+            elif with_mcp:
+                cmd += ["--allowedTools", _MCP_ALLOWED]
             else:
                 cmd += ["--disallowed-tools", "WebSearch", "WebFetch"]
 
@@ -123,6 +151,25 @@ class ClaudeCodeWorker:
 
         finally:
             _cleanup(tmp_dir)
+
+
+def _find_mcp_binary() -> Path:
+    """Resolve the absolute path to the obsidian-agent binary for the MCP config.
+
+    Prefers the binary sitting next to the current Python interpreter (i.e.
+    inside the active venv), then falls back to PATH.  Using an absolute path
+    here is critical because the MCP subprocess is spawned by Claude Code in
+    an environment where cron's minimal PATH may not include the venv bin dir.
+    """
+    venv_candidate = Path(sys.executable).parent / "obsidian-agent"
+    if venv_candidate.exists():
+        return venv_candidate
+    on_path = shutil.which("obsidian-agent")
+    if on_path:
+        return Path(on_path)
+    # Last resort: let the shell resolve it; will likely fail in cron but
+    # produces a clearer error than a silent MCP startup failure.
+    return Path("obsidian-agent")
 
 
 def _extract_output(stdout: str) -> str:
