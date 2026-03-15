@@ -57,6 +57,23 @@ def populated(vault: Path, tmp_path: Path):
     return vault, store
 
 
+@pytest.fixture()
+def populated_with_chunks(populated):
+    """Extend the populated fixture with chunks rows for search_notes tests."""
+    vault, store = populated
+    store.conn.executemany(
+        "INSERT INTO chunks (id, note_relpath, chunk_index, section_header, text, token_count) VALUES (?, ?, ?, ?, ?, ?)",
+        [
+            ("Ideas.md:0", "Ideas.md", 0, None, "Random ideas about python and automation.", 8),
+            ("Projects/Alpha.md:0", "Projects/Alpha.md", 0, "Project Alpha", "Project Alpha with a proposal and research done.", 9),
+            ("Projects/Beta.md:0", "Projects/Beta.md", 0, "Project Beta", "Project Beta draft spec note.", 6),
+            ("Journal/2026-03-07.md:0", "Journal/2026-03-07.md", 0, None, "Daily note content. Follow up on Alpha.", 7),
+            ("Journal/2026-03-08.md:0", "Journal/2026-03-08.md", 0, None, "Another daily note.", 4),
+        ],
+    )
+    return vault, store
+
+
 # ---------------------------------------------------------------------------
 # get_note
 # ---------------------------------------------------------------------------
@@ -224,32 +241,64 @@ class TestGetNoteLinks:
 # ---------------------------------------------------------------------------
 
 class TestSearchNotes:
-    def test_finds_matching_note(self, populated):
-        vault, store = populated
-        result = tools.search_notes(vault, store, "automation")
+    def test_finds_matching_note(self, populated_with_chunks):
+        vault, store = populated_with_chunks
+        result = tools.search_notes(store, "automation")
         paths = [r["path"] for r in result]
         assert "Ideas.md" in paths
 
-    def test_excerpt_contains_query_term(self, populated):
-        vault, store = populated
-        result = tools.search_notes(vault, store, "automation")
+    def test_excerpt_contains_query_term(self, populated_with_chunks):
+        vault, store = populated_with_chunks
+        result = tools.search_notes(store, "automation")
         assert any("automation" in r["excerpt"].lower() for r in result)
 
-    def test_case_insensitive(self, populated):
-        vault, store = populated
-        result = tools.search_notes(vault, store, "AUTOMATION")
+    def test_case_insensitive(self, populated_with_chunks):
+        vault, store = populated_with_chunks
+        result = tools.search_notes(store, "AUTOMATION")
         paths = [r["path"] for r in result]
         assert "Ideas.md" in paths
 
-    def test_no_match_returns_empty(self, populated):
-        vault, store = populated
-        result = tools.search_notes(vault, store, "zzznomatchzzz")
+    def test_no_match_returns_empty(self, populated_with_chunks):
+        vault, store = populated_with_chunks
+        result = tools.search_notes(store, "zzznomatchzzz")
         assert result == []
 
-    def test_limit_respected(self, populated):
-        vault, store = populated
-        result = tools.search_notes(vault, store, "note", limit=2)
+    def test_limit_respected(self, populated_with_chunks):
+        vault, store = populated_with_chunks
+        result = tools.search_notes(store, "note", limit=2)
         assert len(result) <= 2
+
+    def test_returns_one_result_per_note(self, populated_with_chunks):
+        # Insert a second chunk for Ideas.md to verify deduplication
+        vault, store = populated_with_chunks
+        store.conn.execute(
+            "INSERT INTO chunks (id, note_relpath, chunk_index, section_header, text, token_count) VALUES (?, ?, ?, ?, ?, ?)",
+            ("Ideas.md:1", "Ideas.md", 1, None, "More ideas about automation tools.", 6),
+        )
+        result = tools.search_notes(store, "automation")
+        paths = [r["path"] for r in result]
+        assert paths.count("Ideas.md") == 1
+
+    def test_section_header_included_when_present(self, populated_with_chunks):
+        vault, store = populated_with_chunks
+        result = tools.search_notes(store, "proposal")
+        alpha = next((r for r in result if r["path"] == "Projects/Alpha.md"), None)
+        assert alpha is not None
+        assert alpha.get("section_header") == "Project Alpha"
+
+
+class TestSearchNotesNoIndex:
+    def test_empty_chunks_returns_empty(self, populated):
+        vault, store = populated
+        result = tools.search_notes(store, "automation")
+        assert result == []
+
+    def test_empty_chunks_logs_warning(self, populated, caplog):
+        import logging
+        vault, store = populated
+        with caplog.at_level(logging.WARNING, logger="obsidian_agent.mcp.tools"):
+            tools.search_notes(store, "automation")
+        assert any("index-semantic" in m for m in caplog.messages)
 
 
 # ---------------------------------------------------------------------------

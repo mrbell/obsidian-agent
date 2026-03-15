@@ -1,6 +1,6 @@
 # 10-7 — Research Digest Token Usage and Context-Budget Profiling
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 10
 **Children**: —
 **Depends on**: 4-1, 6-5, 8-2

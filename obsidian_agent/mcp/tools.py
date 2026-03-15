@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -12,9 +13,7 @@ from obsidian_agent.index import queries
 from obsidian_agent.index import semantic_queries as sq
 from obsidian_agent.index.store import IndexStore
 
-
-def _vault_path_for(vault_path: Path, note_relpath: str) -> Path:
-    return vault_path / note_relpath
+log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -22,46 +21,60 @@ def _vault_path_for(vault_path: Path, note_relpath: str) -> Path:
 # ---------------------------------------------------------------------------
 
 def search_notes(
-    vault_path: Path,
     store: IndexStore,
     query: str,
     limit: int = 10,
 ) -> list[dict[str, Any]]:
-    """Case-insensitive substring search across note content."""
+    """Case-insensitive substring search across indexed note chunks.
+
+    Requires the semantic index to be populated (run 'obsidian-agent index-semantic').
+    Returns [] with a warning if the chunks table is empty.
+    """
     if not query:
         return []
 
+    chunk_count = store.conn.execute("SELECT count(*) FROM chunks").fetchone()[0]
+    if chunk_count == 0:
+        log.warning(
+            "search_notes: chunks table is empty — run 'obsidian-agent index-semantic' first"
+        )
+        return []
+
+    rows = store.conn.execute(
+        """
+        SELECT note_relpath, section_header, text
+        FROM (
+            SELECT note_relpath, section_header, text, chunk_index,
+                   ROW_NUMBER() OVER (PARTITION BY note_relpath ORDER BY chunk_index) AS rn
+            FROM chunks
+            WHERE text ILIKE ?
+        )
+        WHERE rn = 1
+        ORDER BY note_relpath
+        LIMIT ?
+        """,
+        [f"%{query}%", limit],
+    ).fetchall()
+
     query_lower = query.lower()
     results: list[dict[str, Any]] = []
-
-    note_relpaths = [
-        r[0]
-        for r in store.conn.execute("SELECT note_relpath FROM notes ORDER BY note_relpath").fetchall()
-    ]
-
-    for relpath in note_relpaths:
-        abs_path = vault_path / relpath
-        try:
-            content = abs_path.read_text(encoding="utf-8")
-        except OSError:
-            continue
-
-        idx = content.lower().find(query_lower)
+    for note_relpath, section_header, text in rows:
+        idx = text.lower().find(query_lower)
         if idx == -1:
-            continue
+            excerpt = text[:160].strip() + ("…" if len(text) > 160 else "")
+        else:
+            start = max(0, idx - 80)
+            end = min(len(text), idx + len(query) + 80)
+            excerpt = text[start:end].strip()
+            if start > 0:
+                excerpt = "…" + excerpt
+            if end < len(text):
+                excerpt = excerpt + "…"
 
-        # Extract a short excerpt around the match
-        start = max(0, idx - 80)
-        end = min(len(content), idx + len(query) + 80)
-        excerpt = content[start:end].strip()
-        if start > 0:
-            excerpt = "…" + excerpt
-        if end < len(content):
-            excerpt = excerpt + "…"
-
-        results.append({"path": relpath, "excerpt": excerpt})
-        if len(results) >= limit:
-            break
+        result: dict[str, Any] = {"path": note_relpath, "excerpt": excerpt}
+        if section_header:
+            result["section_header"] = section_header
+        results.append(result)
 
     return results
 

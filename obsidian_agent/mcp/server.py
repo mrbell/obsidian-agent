@@ -41,8 +41,12 @@ def create_server(
 
     @mcp.tool()
     def search_notes(query: str, limit: int = 10) -> list[dict[str, Any]]:
-        """Search note content for a query string. Returns matching paths and excerpts."""
-        return _tools.search_notes(vault_path, store, query, limit=limit)
+        """Search note content for a query string. Returns matching paths and excerpts.
+
+        Requires the semantic index to be built (obsidian-agent index-semantic).
+        Returns [] if the semantic index is absent.
+        """
+        return _tools.search_notes(store, query, limit=limit)
 
     @mcp.tool()
     def get_note(path: str) -> str:

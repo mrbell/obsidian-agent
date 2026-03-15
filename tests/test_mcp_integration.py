@@ -72,6 +72,13 @@ def server(vault: Path, tmp_path: Path):
     db_path = tmp_path / "index.duckdb"
     with IndexStore(db_path) as store:
         build_index(vault, store)
+        store.conn.executemany(
+            "INSERT INTO chunks (id, note_relpath, chunk_index, section_header, text, token_count) VALUES (?, ?, ?, ?, ?, ?)",
+            [
+                ("2026-03-08.md:0", "2026-03-08.md", 0, None, "Daily note content for 2026-03-08.", 7),
+                ("Projects/Note.md:0", "Projects/Note.md", 0, "Test Note", "Test Note with open task and done task.", 9),
+            ],
+        )
 
     return create_server(vault, db_path)
 

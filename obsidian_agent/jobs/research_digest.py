@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import time
 from datetime import timedelta
 
 from obsidian_agent.config import ResearchTopic
@@ -101,15 +102,24 @@ def run(ctx: JobContext) -> list[JobOutput]:
         ctx.logger.info("research_digest: processing topic=%r", topic.name)
 
         prompt = _build_prompt(topic, job_cfg.lookback_days, today_str, since_str)
+        prompt_chars = len(prompt)
 
+        t0 = time.monotonic()
         result = ctx.worker.run(prompt, web_search=True)
+        elapsed = time.monotonic() - t0
 
         if result.returncode != 0:
             ctx.logger.error(
-                "research_digest: worker failed for topic=%r returncode=%d stderr=%s",
-                topic.name, result.returncode, result.stderr[:300],
+                "research_digest: worker failed for topic=%r returncode=%d elapsed=%.1fs stderr=%s",
+                topic.name, result.returncode, elapsed, result.stderr[:300],
             )
             continue
+
+        output_chars = len(result.output)
+        ctx.logger.info(
+            "research_digest: topic=%r prompt_chars=%d output_chars=%d elapsed=%.1fs",
+            topic.name, prompt_chars, output_chars, elapsed,
+        )
 
         if not _validate_output(result.output):
             ctx.logger.error(
