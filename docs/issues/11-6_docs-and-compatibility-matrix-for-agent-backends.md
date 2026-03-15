@@ -1,6 +1,18 @@
 # 11-6 — Docs and Compatibility Matrix for Agent Backends
 
-**Status**: `open`
+**Status**: `completed`
+
+## Notes
+
+Updated:
+
+- `README.md`
+- `DESIGN.md`
+- `CLAUDE.md`
+- `config/config.yaml.example`
+
+The docs now describe the agent layer generically, include both Claude and Codex
+configuration examples, and provide a backend compatibility matrix.
 **Parent**: 11
 **Children**: —
 **Depends on**: 11-2, 11-3, 11-5

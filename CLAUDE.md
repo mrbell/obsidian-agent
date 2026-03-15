@@ -12,7 +12,7 @@ vault is never modified by automation.
 
 - Jobs **never** write to the vault directory. Ever.
 - `promote/promoter.py` is the **only** component that writes into the vault, and only under `BotInbox/`.
-- Claude Code **never** receives the vault filesystem path — it accesses vault content through the MCP server only.
+- Agent backends **never** receive the vault filesystem path directly — they access vault content through the MCP server only.
 - The MCP server exposes **no write tools**.
 
 ---
@@ -39,8 +39,8 @@ obsidian_agent/
 
     vault/            # reads vault files; no writes
     index/            # DuckDB schema, build, queries
-    mcp/              # MCP server exposing vault to Claude Code
-    agent/            # headless Claude Code worker
+    mcp/              # MCP server exposing vault to agent backends
+    agent/            # backend adapters (Claude, Codex)
     jobs/             # job implementations
     promote/          # vault inbox promotion (only write path into vault)
     delivery/         # email and notification delivery
@@ -77,7 +77,7 @@ uv run obsidian-agent index          # rebuild vault index
 uv run obsidian-agent run <job>      # run a named job
 uv run obsidian-agent promote        # promote outbox artifacts to vault
 uv run obsidian-agent mcp            # start MCP server
-uv run obsidian-agent agent test     # verify Claude Code is available
+uv run obsidian-agent agent test     # verify the configured backend is available
 uv run obsidian-agent agent test --mcp  # also verify MCP vault connectivity
 uv run obsidian-agent status         # show index and outbox status
 
@@ -114,4 +114,4 @@ Only `index` and `index-semantic` open the DB in **write mode**. All other comma
 
 ## MCP Tool Permissions
 
-When adding a new tool to `mcp/server.py`, also add it to `_MCP_TOOLS` in `agent/worker.py`. This list is used to build the `--allowedTools` flag for headless Claude Code workers. If a tool is missing from the list, the worker cannot call it (permission denied in headless mode, with no error — the model just says the tool is unavailable).
+When adding a new tool to `mcp/server.py`, also add it to `_MCP_TOOLS` in `agent/claude.py`. Claude uses this list to build the `--allowedTools` flag for headless runs. Codex does not use the same allowlist mechanism; it receives MCP configuration through per-run `mcp_servers` overrides.

@@ -28,11 +28,15 @@ delivery:
     to_address: you@gmail.com
 
 agent:
-  backend: claude
+  backend: claude                  # claude or codex
   command: claude
   args: ["--print", "--output-format", "json", "--no-session-persistence"]
   timeout_seconds: 300
   work_dir: ~/.local/share/obsidian-agent/agent_workdir
+  # Codex example:
+  # backend: codex
+  # command: codex
+  # args: ["exec", "--sandbox", "read-only", "--ephemeral"]
 
 jobs:
   task_notification:

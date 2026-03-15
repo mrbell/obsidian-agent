@@ -39,14 +39,14 @@ Jobs are not required to produce vault notes. A job may produce:
 - A `Notification` (a message delivered to an external channel such as email)
 - Both
 
-### Claude Code as the LLM worker
-Rather than calling the Anthropic API directly, LLM-assisted jobs invoke Claude Code headlessly.
-This leverages an existing subscription rather than incurring separate API token costs. Claude
-Code's built-in tools (web search, URL fetching) are used intentionally for research jobs.
+### Agent backends as the LLM worker
+Rather than calling provider APIs directly, LLM-assisted jobs invoke a configured agent backend headlessly.
+This leverages an existing subscription rather than incurring separate API token costs. The
+current supported backends are Claude Code and Codex CLI.
 
-Claude Code accesses vault content exclusively through a **read-only MCP server** provided by
-this system. It is never given direct filesystem access to the vault. This is both a safety
-boundary and an architectural benefit: Claude Code can navigate and retrieve vault content
+Agent backends access vault content exclusively through a **read-only MCP server** provided by
+this system. They are never given direct filesystem access to the vault. This is both a safety
+boundary and an architectural benefit: the agent can navigate and retrieve vault content
 naturally using MCP tools, without the orchestrator having to predict and pre-fetch the right
 context.
 
@@ -56,7 +56,7 @@ they require internet access so users understand what they are enabling.
 
 ### Privacy-conscious
 Vault content is accessed through a locally-running MCP server. No vault content is transmitted
-to third-party services except as part of a Claude Code invocation, subject to Anthropic's
+to third-party services except as part of an agent backend invocation, subject to the provider's
 privacy terms. Research jobs may fetch external content.
 
 ---
@@ -78,7 +78,7 @@ privacy terms. Research jobs may fetch external content.
                       v
              +------------------+
              |   MCP Server     |  <-- read-only vault tools
-             |   (local stdio)  |      exposed to Claude Code
+             |   (local stdio)  |      exposed to agent backends
              +--------+---------+
                       |
               +-------+-------+
@@ -86,7 +86,7 @@ privacy terms. Research jobs may fetch external content.
               | (MCP tools)   | (web tools)
               v               v
          +----------------------------+
-         |     Claude Code Worker     |  (LLM-assisted jobs only)
+         |       Agent Backend        |  (LLM-assisted jobs only)
          |     (headless, isolated)   |
          +-------------+--------------+
                        |
@@ -144,14 +144,14 @@ Builds and maintains a DuckDB database of vault metadata. Supports incremental u
 `mtime_ns` + `size_bytes` as a fast change check, with SHA-256 hash as a secondary check.
 
 The index is a fast filter and lookup layer. The MCP server exposes both the index (for
-structured queries) and raw note content (read from disk on demand) to Claude Code.
+structured queries) and raw note content (read from disk on demand) to agent backends.
 
 See **Section 7 — Indexing Strategy** for the full scan algorithm and change handling details.
 
 ### MCP Server (`mcp/server.py`)
 
-A local MCP server that exposes the vault and index to Claude Code through a set of read-only
-tools. Runs as a stdio subprocess launched by the Claude Code worker for each job invocation.
+A local MCP server that exposes the vault and index to agent backends through a set of read-only
+tools. Runs as a stdio subprocess launched by the configured backend adapter for each job invocation.
 
 **Exposed tools**:
 
@@ -169,10 +169,10 @@ tools. Runs as a stdio subprocess launched by the Claude Code worker for each jo
 **Safety properties**:
 - No write tools are exposed. The MCP protocol boundary enforces read-only access.
 - The server reads from the vault path and DuckDB index configured at startup.
-- Claude Code using this server has no need to access the vault via its own filesystem tools.
+- Agent backends using this server have no need to access the vault via their own filesystem tools.
 
-This is the primary interface between Claude Code and the vault. It replaces the pattern of
-the orchestrator pre-fetching and injecting context into prompts. Claude Code retrieves what
+This is the primary interface between agent backends and the vault. It replaces the pattern of
+the orchestrator pre-fetching and injecting context into prompts. The agent retrieves what
 it needs, when it needs it, using these tools.
 
 ### Job Runner (`runner.py`, `jobs/`)
@@ -181,24 +181,29 @@ Loads and executes jobs by name. Each job receives a `JobContext` and returns a 
 `JobOutput` items (`VaultArtifact` or `Notification`).
 
 Deterministic jobs interact with the index and vault reader directly.
-LLM-assisted jobs write a prompt and delegate to the Claude Code worker.
+LLM-assisted jobs write a prompt and delegate to the configured backend adapter.
 
-### Claude Code Worker (`agent/worker.py`)
+### Backend Adapters (`agent/claude.py`, `agent/codex.py`)
 
-Invokes Claude Code headlessly for LLM-assisted jobs.
+Invoke supported agent backends headlessly for LLM-assisted jobs.
 
-- Runs Claude Code with `-p` / `--print` for non-interactive output.
-- Registers the vault MCP server via `--mcp-config <path-to-json>`.
-- Claude Code runs in an isolated temporary working directory.
-- Captures Claude Code's stdout (plain text by default).
+- Normalize the shared worker interface: prompt in, `WorkerResult` out.
+- Register the vault MCP server per run.
+- Run the backend in an isolated temporary working directory.
+- Capture the backend's final output in a machine-readable form.
 - Enforces a configurable timeout.
 - Returns raw output text for the job to validate and wrap as a `VaultArtifact`.
 
-Claude Code is given a task description. It uses MCP tools to retrieve whatever vault context
-it determines is relevant, and web tools (if enabled) for research tasks. The worker does not
+The agent is given a task description. It uses MCP tools to retrieve whatever vault context
+it determines is relevant, and web tools (if enabled) for research tasks. The adapter does not
 need to predict or pre-fetch context.
 
-**Confirmed invocation flags** (validated in spike 4-4):
+Backend-specific invocation:
+
+- Claude uses `--mcp-config` plus explicit tool allowlisting.
+- Codex uses `codex exec`, optional top-level `--search`, and per-run `-c mcp_servers...` overrides.
+
+**Claude reference invocation** (validated in spike 4-4):
 
 ```
 claude -p "<prompt>" \
@@ -207,7 +212,7 @@ claude -p "<prompt>" \
   --no-session-persistence
 ```
 
-Use `--output-format json` (not `text`) so the worker can parse the structured result:
+Use `--output-format json` (not `text`) so the Claude adapter can parse the structured result:
 the JSON object contains `result` (the text), `is_error` (boolean), and `stop_reason`.
 This allows reliable error detection without guessing from output text.
 
@@ -729,6 +734,7 @@ delivery:
     to_address: you@gmail.com
 
 agent:
+  backend: claude
   command: claude
   args: ["--print"]
   timeout_seconds: 300
@@ -758,6 +764,7 @@ jobs:
 - `bot_inbox_rel` must be a relative path (no leading `/`, no `..`)
 - `outbox` must not be inside `vault`
 - `state_dir` must not be inside `vault`
+- `agent.backend` defaults to `claude` when omitted
 - `agent.command` required if any Class B or C job is enabled
 - SMTP config required if any job produces a `Notification`
 
@@ -771,7 +778,7 @@ obsidian-agent index-semantic     # update semantic index (embeddings + concept 
 obsidian-agent run <job>          # run a named job
 obsidian-agent promote            # promote outbox artifacts to vault BotInbox
 obsidian-agent status             # index stats, pending outbox items, recent job runs
-obsidian-agent agent test         # verify Claude Code is installed and working
+obsidian-agent agent test         # verify the configured agent backend is installed and working
 obsidian-agent mcp                # start the MCP server (used internally; can also be
                                   # registered in Claude Desktop for manual exploration)
 ```
@@ -832,7 +839,11 @@ obsidian-agent/
 
         agent/
             __init__.py
-            worker.py           # launches Claude Code with MCP server configured
+            base.py             # backend-neutral worker contract
+            claude.py           # Claude backend adapter
+            codex.py            # Codex backend adapter
+            factory.py          # backend selection
+            worker.py           # compatibility shim
 
         jobs/
             __init__.py

@@ -21,14 +21,16 @@ Obsidian Agent maintains two indexes of your vault:
 - A **structural index** (DuckDB) — notes, tasks, tags, links, headings. Fast to build, updated before each job run.
 - A **semantic index** — paragraph-level embeddings and LLM-extracted concepts, entities, and implicit ideas. Built incrementally on a nightly schedule.
 
-Jobs query these indexes and optionally invoke Claude (via Claude Code) to produce outputs. A local MCP server gives Claude read-only access to your vault — it never touches the filesystem directly.
+Jobs query these indexes and optionally invoke a configured agent backend to produce outputs. A local MCP server gives the agent read-only access to your vault — it never touches the filesystem directly.
 
 ## Requirements
 
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/)
 - An Obsidian vault
-- A [Claude](https://claude.ai) subscription (for LLM-assisted jobs)
+- A supported agent backend for LLM-assisted jobs:
+  - [Claude Code](https://claude.ai/code)
+  - [Codex CLI](https://developers.openai.com/codex/)
 - A Gmail or Fastmail account (for email delivery)
 
 ## Setup
@@ -48,7 +50,7 @@ mkdir -p ~/.config/obsidian-agent
 cp config/config.yaml.example ~/.config/obsidian-agent/config.yaml
 ```
 
-Edit the config to set your vault path, SMTP settings, and job preferences. See `config/config.yaml.example` for all available options.
+Edit the config to set your vault path, SMTP settings, agent backend, and job preferences. See `config/config.yaml.example` for all available options.
 
 **3. Set your email password**
 
@@ -109,9 +111,45 @@ obsidian-agent status             # show index stats and pending outbox items
 obsidian-agent cron show          # preview cron entries for enabled jobs
 obsidian-agent cron install       # install cron entries
 obsidian-agent cron uninstall     # remove cron entries
-obsidian-agent agent test         # verify Claude is reachable
+obsidian-agent agent test         # verify the configured agent backend is reachable
 obsidian-agent mcp                # start the MCP server (also usable in Claude Desktop)
 ```
+
+## Agent backends
+
+The job layer is backend-neutral. Configure the `agent` section in `config.yaml` to select a backend:
+
+```yaml
+agent:
+  backend: claude
+  command: claude
+  args: ["--print", "--output-format", "json", "--no-session-persistence"]
+  timeout_seconds: 300
+  work_dir: ~/.local/share/obsidian-agent/agent_workdir
+```
+
+Codex is also supported:
+
+```yaml
+agent:
+  backend: codex
+  command: codex
+  args: ["exec", "--sandbox", "read-only", "--ephemeral"]
+  timeout_seconds: 300
+  work_dir: ~/.local/share/obsidian-agent/agent_workdir
+```
+
+Compatibility matrix:
+
+| Backend | Non-interactive runs | MCP vault access | Web search | Structured output | Status |
+|---|---|---|---|---|---|
+| `claude` | Yes | Yes | Yes | Yes | Reference implementation |
+| `codex` | Yes | Yes | Yes | Yes | Supported |
+
+Notes:
+- Claude uses per-run `--mcp-config` and tool allowlists.
+- Codex uses per-run `-c mcp_servers...` overrides and `--search`.
+- `obsidian-agent agent test --mcp` works for both backends.
 
 ## Available jobs
 
@@ -124,7 +162,7 @@ obsidian-agent mcp                # start the MCP server (also usable in Claude 
 
 ## Using the MCP server interactively
 
-The MCP server runs automatically during job execution — you don't need to manage it. But you can also register it with Claude Code or Claude Desktop to query your vault interactively in conversation.
+The MCP server runs automatically during job execution — you don't need to manage it. But you can also register it with Claude Code, Codex, or Claude Desktop to query your vault interactively in conversation.
 
 **Claude Code — this project only**
 
@@ -158,6 +196,16 @@ claude mcp add obsidian-vault --scope user -- uv --directory /path/to/obsidian-a
 Add the same block under `mcpServers` in Claude Desktop's settings file (Settings → Developer → Edit Config).
 
 Once registered, you can ask Claude things like "what tasks do I have due this week", "find notes related to X", or "what ideas have I been writing about recently" and it will query your live vault index directly.
+
+**Codex CLI**
+
+Codex can register the MCP server globally:
+
+```bash
+codex mcp add obsidian-vault -- uv --directory /path/to/obsidian-agent run obsidian-agent mcp
+```
+
+For scheduled Obsidian Agent runs, the Codex backend injects MCP configuration per run, so global registration is optional.
 
 ## Safety
 
