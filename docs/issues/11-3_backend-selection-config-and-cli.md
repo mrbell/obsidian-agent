@@ -1,6 +1,6 @@
 # 11-3 — Backend Selection in Config and CLI
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 11
 **Children**: —
 **Depends on**: 11-1, 11-2

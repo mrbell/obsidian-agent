@@ -81,6 +81,7 @@ def test_full_config_loads(vault: Path, workspace: Path, tmp_path: Path) -> None
         }
     }
     raw["agent"] = {
+        "backend": "claude",
         "command": "claude",
         "args": ["--print"],
         "timeout_seconds": 600,
@@ -105,6 +106,7 @@ def test_full_config_loads(vault: Path, workspace: Path, tmp_path: Path) -> None
     assert cfg.delivery.email.password_env == "MY_SMTP_PASSWORD"
 
     assert isinstance(cfg.agent, AgentConfig)
+    assert cfg.agent.backend == "claude"
     assert cfg.agent.command == "claude"
     assert cfg.agent.args == ["--print"]
     assert cfg.agent.timeout_seconds == 600
@@ -269,3 +271,34 @@ def test_delivery_section_present_but_no_email(
 def test_agent_section_absent_gives_none(vault: Path, workspace: Path, tmp_path: Path) -> None:
     cfg = load_config(write_config(tmp_path, minimal_raw(vault, workspace)))
     assert cfg.agent is None
+
+
+def test_agent_backend_defaults_to_claude_when_omitted(
+    vault: Path, workspace: Path, tmp_path: Path
+) -> None:
+    raw = minimal_raw(vault, workspace)
+    raw["agent"] = {
+        "command": "claude",
+        "args": ["--print"],
+        "timeout_seconds": 60,
+        "work_dir": str(workspace / "workdir"),
+    }
+    cfg = load_config(write_config(tmp_path, raw))
+    assert cfg.agent is not None
+    assert cfg.agent.backend == "claude"
+
+
+def test_agent_backend_parses_explicit_codex(
+    vault: Path, workspace: Path, tmp_path: Path
+) -> None:
+    raw = minimal_raw(vault, workspace)
+    raw["agent"] = {
+        "backend": "codex",
+        "command": "codex",
+        "args": ["exec"],
+        "timeout_seconds": 60,
+        "work_dir": str(workspace / "workdir"),
+    }
+    cfg = load_config(write_config(tmp_path, raw))
+    assert cfg.agent is not None
+    assert cfg.agent.backend == "codex"

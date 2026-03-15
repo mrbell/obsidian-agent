@@ -28,6 +28,7 @@ delivery:
     to_address: you@gmail.com
 
 agent:
+  backend: claude
   command: claude
   args: ["--print", "--output-format", "json", "--no-session-persistence"]
   timeout_seconds: 300

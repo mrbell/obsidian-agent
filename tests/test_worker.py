@@ -17,6 +17,7 @@ from obsidian_agent.config import AgentConfig
 
 def _make_worker(tmp_path: Path, command: str, args: list[str] | None = None) -> ClaudeBackendAdapter:
     cfg = AgentConfig(
+        backend="claude",
         command=command,
         args=args or [],
         timeout_seconds=5,
@@ -93,6 +94,7 @@ class TestBasicExecution:
 class TestTimeout:
     def test_timeout_returns_nonzero(self, tmp_path: Path) -> None:
         cfg = AgentConfig(
+            backend="claude",
             command=sys.executable,
             args=["-c", "import time; time.sleep(60)"],
             timeout_seconds=1,
@@ -105,6 +107,7 @@ class TestTimeout:
 
     def test_timeout_output_is_empty(self, tmp_path: Path) -> None:
         cfg = AgentConfig(
+            backend="claude",
             command=sys.executable,
             args=["-c", "import time; time.sleep(60)"],
             timeout_seconds=1,

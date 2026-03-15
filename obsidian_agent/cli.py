@@ -6,6 +6,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from obsidian_agent.agent.factory import AgentBackendError, build_agent_worker
 from obsidian_agent.config import ConfigError, load_config
 from obsidian_agent.index.build_index import build_index
 from obsidian_agent.index.store import IndexStore
@@ -40,6 +41,21 @@ def _load(config_path: Path, verbose: bool):
         raise typer.Exit(1)
     setup_logging(cfg.paths.state_dir, verbose=verbose)
     return cfg
+
+
+def _build_worker(cfg, config_path: Path):
+    if cfg.agent is None:
+        return None
+    try:
+        return build_agent_worker(
+            cfg.agent,
+            vault_path=cfg.paths.vault,
+            db_path=cfg.cache.duckdb_path,
+            config_path=config_path,
+        )
+    except AgentBackendError as exc:
+        console.print(f"[bold red]Agent backend error:[/bold red] {exc}")
+        raise typer.Exit(1)
 
 
 # ---------------------------------------------------------------------------
@@ -112,13 +128,7 @@ def index_semantic(
 
     worker = None
     if cfg.agent:
-        from obsidian_agent.agent.claude import ClaudeBackendAdapter
-        worker = ClaudeBackendAdapter(
-            cfg=cfg.agent,
-            vault_path=cfg.paths.vault,
-            db_path=cfg.cache.duckdb_path,
-            config_path=_resolve_config_path(config),
-        )
+        worker = _build_worker(cfg, _resolve_config_path(config))
 
     with IndexStore(cfg.cache.duckdb_path) as store:
         emb_stats, intel_stats = run_semantic_index(
@@ -354,7 +364,7 @@ def cron_uninstall(
 # agent (sub-app)
 # ---------------------------------------------------------------------------
 
-agent_app = typer.Typer(help="Commands for the Claude Code agent worker.")
+agent_app = typer.Typer(help="Commands for the configured agent backend.")
 app.add_typer(agent_app, name="agent")
 
 
@@ -366,13 +376,11 @@ def agent_test(
     mcp: bool = typer.Option(False, "--mcp", help="Also verify MCP vault connectivity"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable debug logging"),
 ) -> None:
-    """Verify Claude Code is installed and able to produce output.
+    """Verify the configured agent backend is installed and able to produce output.
 
     With --mcp, also verifies the worker can connect to the vault MCP server
     and call a vault tool successfully.
     """
-    from obsidian_agent.agent.claude import ClaudeBackendAdapter
-
     cfg = _load(config, verbose)
 
     if not cfg.agent:
@@ -382,14 +390,9 @@ def agent_test(
         )
         raise typer.Exit(1)
 
-    worker = ClaudeBackendAdapter(
-        cfg=cfg.agent,
-        vault_path=cfg.paths.vault,
-        db_path=cfg.cache.duckdb_path,
-        config_path=_resolve_config_path(config),
-    )
+    worker = _build_worker(cfg, _resolve_config_path(config))
 
-    console.print("Running agent smoke test (no MCP)...")
+    console.print(f"Running {worker.backend.backend_id} smoke test (no MCP)...")
     result = worker.run(
         "Say the word READY and nothing else.",
         web_search=False,
@@ -408,6 +411,12 @@ def agent_test(
         raise typer.Exit(1)
 
     if mcp:
+        if not worker.backend.capabilities.mcp:
+            console.print(
+                f"[bold red]FAIL[/bold red]  Backend {worker.backend.backend_id!r} "
+                "does not support MCP."
+            )
+            raise typer.Exit(1)
         console.print("Running MCP connectivity test...")
         result = worker.run(
             "Call the get_vault_stats MCP tool and report the total note count "
@@ -461,7 +470,6 @@ def run(
     import logging
     from datetime import date
 
-    from obsidian_agent.agent.claude import ClaudeBackendAdapter
     from obsidian_agent.context import JobContext
     from obsidian_agent.delivery.base import DeliveryError
     from obsidian_agent.delivery.smtp import SmtpDelivery
@@ -487,12 +495,7 @@ def run(
 
     worker = None
     if cfg.agent:
-        worker = ClaudeBackendAdapter(
-            cfg=cfg.agent,
-            vault_path=cfg.paths.vault,
-            db_path=cfg.cache.duckdb_path,
-            config_path=_resolve_config_path(config),
-        )
+        worker = _build_worker(cfg, _resolve_config_path(config))
 
     cfg.paths.state_dir.mkdir(parents=True, exist_ok=True)
     cfg.paths.outbox.mkdir(parents=True, exist_ok=True)

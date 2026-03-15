@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import yaml
+from unittest.mock import MagicMock
 from typer.testing import CliRunner
 
 from obsidian_agent.cli import app
@@ -30,6 +31,7 @@ def _write_config(tmp_path: Path, *, with_agent: bool = True) -> Path:
     }
     if with_agent:
         cfg["agent"] = {
+            "backend": "claude",
             "command": sys.executable,
             # Emit a valid --output-format json result object
             "args": [
@@ -74,6 +76,7 @@ def test_agent_test_fails_when_command_not_found(tmp_path: Path) -> None:
         },
         "cache": {"duckdb_path": str(tmp_path / "index.duckdb")},
         "agent": {
+            "backend": "claude",
             "command": "no-such-command-xyz",
             "args": [],
             "timeout_seconds": 5,
@@ -90,3 +93,48 @@ def test_agent_test_fails_without_agent_config(tmp_path: Path) -> None:
     result = runner.invoke(app, ["agent", "test", "--config", str(cfg)])
     assert result.exit_code == 1
     assert "agent" in result.output.lower()
+
+
+def test_agent_test_uses_backend_factory(monkeypatch, tmp_path: Path) -> None:
+    cfg = _write_config(tmp_path)
+
+    worker = MagicMock()
+    worker.backend.backend_id = "claude"
+    worker.backend.capabilities.mcp = True
+    worker.run.return_value = json.loads('{"returncode": 0, "output": "READY", "stderr": ""}')
+
+    from obsidian_agent.agent.base import WorkerResult
+
+    worker.run.return_value = WorkerResult(0, "READY", "", backend_id="claude")
+    factory = MagicMock(return_value=worker)
+    monkeypatch.setattr("obsidian_agent.cli.build_agent_worker", factory)
+
+    result = runner.invoke(app, ["agent", "test", "--config", str(cfg)])
+
+    assert result.exit_code == 0
+    factory.assert_called_once()
+
+
+def test_agent_test_reports_unimplemented_backend(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text(yaml.dump({
+        "paths": {
+            "vault": str(vault),
+            "outbox": str(tmp_path / "outbox"),
+            "state_dir": str(tmp_path / "state"),
+            "bot_inbox_rel": "BotInbox",
+        },
+        "cache": {"duckdb_path": str(tmp_path / "index.duckdb")},
+        "agent": {
+            "backend": "codex",
+            "command": "codex",
+            "args": ["exec"],
+            "timeout_seconds": 5,
+            "work_dir": str(tmp_path),
+        },
+    }))
+    result = runner.invoke(app, ["agent", "test", "--config", str(cfg_path)])
+    assert result.exit_code == 1
+    assert "not implemented yet" in result.output.lower()

@@ -46,6 +46,7 @@ class DeliveryConfig:
 
 @dataclass(frozen=True)
 class AgentConfig:
+    backend: str
     command: str
     args: list[str]
     timeout_seconds: int
@@ -225,6 +226,7 @@ def _parse_agent(raw: dict | None) -> AgentConfig | None:
     if not raw:
         return None
     return AgentConfig(
+        backend=str(raw.get("backend", "claude")),
         command=_require(raw, "command", "agent"),
         args=list(raw.get("args", [])),
         timeout_seconds=int(raw.get("timeout_seconds", 300)),

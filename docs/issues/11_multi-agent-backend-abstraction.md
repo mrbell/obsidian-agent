@@ -1,6 +1,6 @@
 # 11 — Multi-Agent Backend Abstraction
 
-**Status**: `open`
+**Status**: `in_progress`
 **Parent**: —
 **Children**: 11-1, 11-2, 11-3, 11-4, 11-5, 11-6
 **Depends on**: 4, 5, 6, 8, 10-2
