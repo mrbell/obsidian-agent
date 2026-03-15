@@ -98,6 +98,12 @@ class VaultHygieneReportConfig:
 
 
 @dataclass(frozen=True)
+class ReadwiseIngestionConfig:
+    enabled: bool = False
+    schedule: str = "0 6 * * *"
+
+
+@dataclass(frozen=True)
 class JobsConfig:
     task_notification: TaskNotificationConfig = field(
         default_factory=TaskNotificationConfig
@@ -110,6 +116,9 @@ class JobsConfig:
     )
     vault_hygiene_report: VaultHygieneReportConfig = field(
         default_factory=VaultHygieneReportConfig
+    )
+    readwise_ingestion: ReadwiseIngestionConfig = field(
+        default_factory=ReadwiseIngestionConfig
     )
 
 
@@ -297,6 +306,15 @@ def _parse_vault_hygiene_report(raw: dict | None) -> VaultHygieneReportConfig:
     )
 
 
+def _parse_readwise_ingestion(raw: dict | None) -> ReadwiseIngestionConfig:
+    if not raw:
+        return ReadwiseIngestionConfig()
+    return ReadwiseIngestionConfig(
+        enabled=bool(raw.get("enabled", False)),
+        schedule=str(raw.get("schedule", "0 6 * * *")),
+    )
+
+
 def _parse_jobs(raw: dict | None) -> JobsConfig:
     if not raw:
         return JobsConfig()
@@ -309,6 +327,7 @@ def _parse_jobs(raw: dict | None) -> JobsConfig:
         vault_hygiene_report=_parse_vault_hygiene_report(
             raw.get("vault_hygiene_report")
         ),
+        readwise_ingestion=_parse_readwise_ingestion(raw.get("readwise_ingestion")),
     )
 
 

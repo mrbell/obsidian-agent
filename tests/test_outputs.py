@@ -32,6 +32,7 @@ class TestVaultArtifactWriteToOutbox:
         result = artifact.write_to_outbox(tmp_path)
         assert isinstance(result, Path)
         assert result.is_file()
+        assert result == tmp_path / "job" / "f.md"
 
     def test_no_tmp_file_left_behind(self, tmp_path: Path) -> None:
         artifact = VaultArtifact(job_name="job", filename="f.md", content="data")
@@ -55,6 +56,36 @@ class TestVaultArtifactWriteToOutbox:
         artifact1.write_to_outbox(tmp_path)
         artifact2.write_to_outbox(tmp_path)
         assert (tmp_path / "job" / "f.md").read_text() == "v2"
+
+    def test_destination_writes_to_destinations_staging_area(self, tmp_path: Path) -> None:
+        artifact = VaultArtifact(
+            job_name="readwise_ingestion",
+            filename="article.md",
+            content="# Note\n",
+            destination="Readwise",
+        )
+        dest = artifact.write_to_outbox(tmp_path)
+        assert dest == tmp_path / "__destinations__" / "Readwise" / "article.md"
+
+    def test_dotdot_in_destination_raises(self, tmp_path: Path) -> None:
+        artifact = VaultArtifact(
+            job_name="readwise_ingestion",
+            filename="article.md",
+            content="# Note\n",
+            destination="../escape",
+        )
+        with pytest.raises(ValueError, match=r"\.\."):
+            artifact.write_to_outbox(tmp_path)
+
+    def test_absolute_destination_raises(self, tmp_path: Path) -> None:
+        artifact = VaultArtifact(
+            job_name="readwise_ingestion",
+            filename="article.md",
+            content="# Note\n",
+            destination="/Readwise",
+        )
+        with pytest.raises(ValueError, match="absolute"):
+            artifact.write_to_outbox(tmp_path)
 
 
 class TestNotification:

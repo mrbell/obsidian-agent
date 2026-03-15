@@ -75,3 +75,7 @@ jobs:
     enabled: true
     schedule: "0 10 1,15 * *"         # 1st and 15th of the month
     also_notify: true
+
+  readwise_ingestion:
+    enabled: false
+    schedule: "0 6 * * *"             # daily at 06:00

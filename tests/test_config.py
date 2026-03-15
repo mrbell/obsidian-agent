@@ -144,6 +144,7 @@ def test_jobs_defaults_when_section_absent(vault: Path, workspace: Path, tmp_pat
     assert rd.enabled is True
     assert rd.lookback_days == 7
     assert rd.also_notify is True
+    assert cfg.jobs.readwise_ingestion.enabled is False
 
 
 # ---------------------------------------------------------------------------
@@ -302,3 +303,16 @@ def test_agent_backend_parses_explicit_codex(
     cfg = load_config(write_config(tmp_path, raw))
     assert cfg.agent is not None
     assert cfg.agent.backend == "codex"
+
+
+def test_readwise_ingestion_config_parses(vault: Path, workspace: Path, tmp_path: Path) -> None:
+    raw = minimal_raw(vault, workspace)
+    raw["jobs"] = {
+        "readwise_ingestion": {
+            "enabled": True,
+            "schedule": "30 6 * * *",
+        }
+    }
+    cfg = load_config(write_config(tmp_path, raw))
+    assert cfg.jobs.readwise_ingestion.enabled is True
+    assert cfg.jobs.readwise_ingestion.schedule == "30 6 * * *"

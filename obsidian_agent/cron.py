@@ -142,6 +142,7 @@ def _enabled_jobs(config: Config) -> list[tuple[str, object]]:
         ("research_digest", jobs.research_digest),
         ("vault_connections_report", jobs.vault_connections_report),
         ("vault_hygiene_report", jobs.vault_hygiene_report),
+        ("readwise_ingestion", jobs.readwise_ingestion),
     ]
     return [(name, cfg) for name, cfg in candidates if cfg.enabled]
 

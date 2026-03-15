@@ -87,3 +87,14 @@ def test_promote_exits_nonzero_on_errors(tmp_path: Path) -> None:
     result = runner.invoke(app, ["promote", "--config", str(cfg)])
 
     assert result.exit_code == 1
+
+
+def test_promote_copies_destination_artifact(tmp_path: Path) -> None:
+    cfg = write_config(tmp_path)
+    outbox = tmp_path / "outbox"
+    _write(outbox / "__destinations__" / "Readwise" / "article.md")
+
+    result = runner.invoke(app, ["promote", "--config", str(cfg)])
+
+    assert result.exit_code == 0
+    assert (tmp_path / "vault" / "Readwise" / "article.md").exists()

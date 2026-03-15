@@ -172,3 +172,14 @@ def test_dry_run_does_not_copy_files(dirs):
     dest = vault / BOT_INBOX / "task_notification" / "note.md"
     assert not dest.exists()
     assert result == PromoteResult(promoted=1, skipped=0, errors=0)
+
+
+def test_promotes_destination_artifact_outside_botinbox(dirs):
+    outbox, vault = dirs
+    _write(outbox / "__destinations__" / "Readwise" / "article.md")
+
+    result = promote(outbox, vault, BOT_INBOX)
+
+    dest = vault / "Readwise" / "article.md"
+    assert dest.exists()
+    assert result == PromoteResult(promoted=1, skipped=0, errors=0)

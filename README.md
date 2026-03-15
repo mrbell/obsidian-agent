@@ -12,6 +12,8 @@ A scheduled automation framework for [Obsidian](https://obsidian.md) vaults. Run
 
 **Vault hygiene** — Periodically, get a report of suggestions: implied tasks you never formalized, ideas scattered across daily notes that might deserve their own note, and semantically related notes that aren't linked to each other. Suggestions only — nothing is changed automatically.
 
+**Readwise ingestion** — Pull Readwise article and tweet highlights into permanent notes in a `Readwise/` folder in your vault.
+
 Your existing notes are never modified, moved, or deleted. All outputs are either emails or new notes placed in a `BotInbox/` folder inside your vault.
 
 ## How it works
@@ -159,6 +161,9 @@ Notes:
 | `research_digest` | Weekly | Vault note per configured topic |
 | `vault_connections_report` | Weekly | Vault note surfacing old ideas related to recent activity |
 | `vault_hygiene_report` | Bi-weekly | Vault note with suggestions for implied tasks, missing links, orphaned threads |
+| `readwise_ingestion` | Daily | Permanent vault note per new Readwise article or tweet |
+
+For `readwise_ingestion`, set `READWISE_API_TOKEN` in your environment. Promoted notes go to `Readwise/` rather than `BotInbox/`.
 
 ## Using the MCP server interactively
 

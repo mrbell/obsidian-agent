@@ -25,6 +25,7 @@ def _make_config(tmp_path: Path) -> Config:
     from obsidian_agent.config import (
         TaskNotificationConfig, ResearchDigestConfig,
         VaultConnectionsReportConfig, VaultHygieneReportConfig,
+        ReadwiseIngestionConfig,
     )
 
     return Config(
@@ -44,6 +45,7 @@ def _make_config(tmp_path: Path) -> Config:
             research_digest=ResearchDigestConfig(enabled=True, schedule="0 18 * * 0"),
             vault_connections_report=VaultConnectionsReportConfig(enabled=True, schedule="0 9 * * 1"),
             vault_hygiene_report=VaultHygieneReportConfig(enabled=True, schedule="0 10 1,15 * *"),
+            readwise_ingestion=ReadwiseIngestionConfig(enabled=True, schedule="0 6 * * *"),
         ),
         indexing=IndexingConfig(
             schedule="0 3 * * *",
@@ -122,6 +124,7 @@ class TestBuildManagedSection:
         assert "research_digest" in section
         assert "vault_connections_report" in section
         assert "vault_hygiene_report" in section
+        assert "readwise_ingestion" in section
 
     def test_job_entry_chains_index(self, tmp_path: Path):
         cfg = _make_config(tmp_path)

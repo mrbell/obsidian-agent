@@ -6,6 +6,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from obsidian_agent.outputs import _DESTINATIONS_DIR
+
 log = logging.getLogger(__name__)
 
 
@@ -62,8 +64,19 @@ def promote(
             errors += 1
             continue
 
-        # Compute destination: vault/BotInbox/<job>/<filename>.md
-        dest = inbox_root / rel
+        # Compute destination: vault/BotInbox/<job>/<filename>.md by default,
+        # or a custom vault-relative destination for artifacts staged under
+        # outbox/__destinations__/...
+        if rel.parts and rel.parts[0] == _DESTINATIONS_DIR:
+            if len(rel.parts) < 2:
+                log.error("Rejecting malformed destination artifact path: %s", src)
+                errors += 1
+                continue
+            dest = vault_path / Path(*rel.parts[1:])
+            allowed_root = vault_path.resolve()
+        else:
+            dest = inbox_root / rel
+            allowed_root = inbox_resolved
 
         # Traversal check
         try:
@@ -73,7 +86,7 @@ def promote(
             errors += 1
             continue
 
-        if not dest_resolved.is_relative_to(inbox_resolved):
+        if not dest_resolved.is_relative_to(allowed_root):
             log.error(
                 "Rejecting path traversal attempt: %s -> %s", src, dest_resolved
             )
