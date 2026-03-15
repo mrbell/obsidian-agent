@@ -1,6 +1,6 @@
 # 10-5 — Wikilink Normalization and Link Correctness
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 10
 **Children**: —
 **Depends on**: 1-3, 1-5, 4-1

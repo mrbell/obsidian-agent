@@ -73,6 +73,7 @@ _DUE_DATE_RE = re.compile(
 
 _FULL_DATE_FORMATS = ["%Y-%m-%d", "%Y/%m/%d", "%m/%d/%Y", "%m-%d-%Y"]
 _WIKILINK_RE = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
+_WIKILINK_ANCHOR_RE = re.compile(r"#.*$")
 _MD_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 # Inline tags: #word, #word/subword — not preceded by # or word char
 _INLINE_TAG_RE = re.compile(r"(?<![#\w])#([a-zA-Z][a-zA-Z0-9_/\-]*)")
@@ -93,6 +94,18 @@ _TASK_STATUS_MAP: dict[str, str] = {
 
 def _parse_task_status(checkbox: str) -> str:
     return _TASK_STATUS_MAP.get(checkbox, "open")
+
+
+def _normalize_wikilink_target(raw: str) -> str:
+    """Strip heading/block anchors from a wikilink target.
+
+    Examples:
+        "Note#Heading"   -> "Note"
+        "Note#^block"    -> "Note"
+        "Folder/Note"    -> "Folder/Note"   (path preserved)
+        "Note"           -> "Note"
+    """
+    return _WIKILINK_ANCHOR_RE.sub("", raw).strip()
 
 
 def _parse_due_date(text: str) -> date | None:
@@ -185,7 +198,8 @@ def parse_note(content: str, filename: str) -> ParsedNote:
 
         # Wikilinks
         for wm in _WIKILINK_RE.finditer(line):
-            links.append(Link(line_no=idx, target=wm.group(1).strip(), kind="wikilink"))
+            target = _normalize_wikilink_target(wm.group(1))
+            links.append(Link(line_no=idx, target=target, kind="wikilink"))
 
         # Markdown links
         for mm in _MD_LINK_RE.finditer(line):

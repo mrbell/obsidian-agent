@@ -105,11 +105,16 @@ def get_note_links(
             [note_relpath],
         ).fetchall()
     ]
+    # Match both bare stem ("Note") and path-qualified form ("Folder/Note") so
+    # that [[Note]] and [[Folder/Note]] both resolve as incoming links.
+    p = Path(note_relpath)
+    stem = p.stem
+    path_stem = p.with_suffix("").as_posix()
     incoming = [
         r[0]
         for r in store.conn.execute(
-            "SELECT DISTINCT note_relpath FROM links WHERE target = ? ORDER BY note_relpath",
-            [Path(note_relpath).stem],
+            "SELECT DISTINCT note_relpath FROM links WHERE target = ? OR target = ? ORDER BY note_relpath",
+            [stem, path_stem],
         ).fetchall()
     ]
     return {"outgoing": outgoing, "incoming": incoming}

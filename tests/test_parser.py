@@ -222,6 +222,31 @@ class TestWikilinks:
         wikilinks = [l for l in note.links if l.kind == "wikilink"]
         assert {l.target for l in wikilinks} == {"A", "B"}
 
+    def test_heading_anchor_stripped(self):
+        note = _note("See [[Note#Heading]] here.\n")
+        wikilinks = [l for l in note.links if l.kind == "wikilink"]
+        assert wikilinks[0].target == "Note"
+
+    def test_block_anchor_stripped(self):
+        note = _note("See [[Note#^blockref]] here.\n")
+        wikilinks = [l for l in note.links if l.kind == "wikilink"]
+        assert wikilinks[0].target == "Note"
+
+    def test_path_qualified_wikilink_preserved(self):
+        note = _note("See [[Folder/Note]] here.\n")
+        wikilinks = [l for l in note.links if l.kind == "wikilink"]
+        assert wikilinks[0].target == "Folder/Note"
+
+    def test_path_qualified_with_anchor_stripped(self):
+        note = _note("See [[Folder/Note#Section]] here.\n")
+        wikilinks = [l for l in note.links if l.kind == "wikilink"]
+        assert wikilinks[0].target == "Folder/Note"
+
+    def test_alias_with_anchor_only_note_kept(self):
+        note = _note("See [[Note#Heading|alias]] here.\n")
+        wikilinks = [l for l in note.links if l.kind == "wikilink"]
+        assert wikilinks[0].target == "Note"
+
 
 class TestMarkdownLinks:
     def test_markdown_link(self):

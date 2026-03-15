@@ -235,6 +235,38 @@ class TestGetNoteLinks:
         assert result["outgoing"] == []
         assert result["incoming"] == []
 
+    def test_incoming_path_qualified_wikilink(self, vault, tmp_path):
+        """[[Folder/Note]] should appear as an incoming link for Folder/Note.md."""
+        (vault / "Source.md").write_text(
+            "Links to [[Projects/Alpha]] with path.\n", encoding="utf-8"
+        )
+        (vault / "Projects").mkdir(exist_ok=True)
+        (vault / "Projects" / "Alpha.md").write_text("# Alpha\n", encoding="utf-8")
+
+        db_path = tmp_path / "links_test.duckdb"
+        from obsidian_agent.index.build_index import build_index
+        store = IndexStore(db_path)
+        build_index(vault, store)
+
+        result = tools.get_note_links(store, "Projects/Alpha.md")
+        assert "Source.md" in result["incoming"]
+
+    def test_incoming_anchor_link_resolved(self, vault, tmp_path):
+        """[[Note#Section]] should resolve as an incoming link for Note.md."""
+        (vault / "Source.md").write_text(
+            "Links to [[Projects/Alpha#Details]].\n", encoding="utf-8"
+        )
+        (vault / "Projects").mkdir(exist_ok=True)
+        (vault / "Projects" / "Alpha.md").write_text("# Alpha\n", encoding="utf-8")
+
+        db_path = tmp_path / "anchor_test.duckdb"
+        from obsidian_agent.index.build_index import build_index
+        store = IndexStore(db_path)
+        build_index(vault, store)
+
+        result = tools.get_note_links(store, "Projects/Alpha.md")
+        assert "Source.md" in result["incoming"]
+
 
 # ---------------------------------------------------------------------------
 # search_notes
