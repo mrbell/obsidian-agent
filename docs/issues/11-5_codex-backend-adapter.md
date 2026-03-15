@@ -1,6 +1,6 @@
 # 11-5 — Implement Codex Backend Adapter
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 11
 **Children**: —
 **Depends on**: 11-1, 11-3, 11-4

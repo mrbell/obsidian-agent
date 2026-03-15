@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from obsidian_agent.agent.claude import ClaudeBackendAdapter
-from obsidian_agent.agent.factory import AgentBackendError, build_agent_worker
+from obsidian_agent.agent.codex import CodexBackendAdapter
+from obsidian_agent.agent.factory import build_agent_worker
 from obsidian_agent.config import AgentConfig
 
 
@@ -28,10 +27,10 @@ def test_factory_builds_claude_adapter(tmp_path: Path) -> None:
     assert isinstance(worker, ClaudeBackendAdapter)
 
 
-def test_factory_rejects_unimplemented_codex_backend(tmp_path: Path) -> None:
-    with pytest.raises(AgentBackendError, match="not implemented yet"):
-        build_agent_worker(
-            _cfg(tmp_path, "codex"),
-            vault_path=tmp_path / "vault",
-            db_path=tmp_path / "index.duckdb",
-        )
+def test_factory_builds_codex_adapter(tmp_path: Path) -> None:
+    worker = build_agent_worker(
+        _cfg(tmp_path, "codex"),
+        vault_path=tmp_path / "vault",
+        db_path=tmp_path / "index.duckdb",
+    )
+    assert isinstance(worker, CodexBackendAdapter)

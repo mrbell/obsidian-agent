@@ -4,6 +4,7 @@ from pathlib import Path
 
 from obsidian_agent.agent.base import AgentWorker
 from obsidian_agent.agent.claude import ClaudeBackendAdapter
+from obsidian_agent.agent.codex import CodexBackendAdapter
 from obsidian_agent.config import AgentConfig
 
 
@@ -26,8 +27,10 @@ def build_agent_worker(
             config_path=config_path,
         )
     if cfg.backend == "codex":
-        raise AgentBackendError(
-            "Configured agent backend 'codex' is not implemented yet. "
-            "Complete issue 11-5 before selecting it."
+        return CodexBackendAdapter(
+            cfg=cfg,
+            vault_path=vault_path,
+            db_path=db_path,
+            config_path=config_path,
         )
     raise AgentBackendError(f"Unsupported agent backend: {cfg.backend}")

@@ -46,6 +46,30 @@ def _write_config(tmp_path: Path, *, with_agent: bool = True) -> Path:
     return cfg_path
 
 
+def _write_fake_codex(tmp_path: Path) -> Path:
+    script = tmp_path / "fake-codex.py"
+    script.write_text(
+        """#!/usr/bin/env python3
+import pathlib
+import sys
+
+args = sys.argv[1:]
+output_path = None
+for idx, arg in enumerate(args[:-1]):
+    if arg in {"-o", "--output-last-message"}:
+        output_path = pathlib.Path(args[idx + 1])
+if output_path is not None:
+    if "NOTE_COUNT" in args[-1]:
+        output_path.write_text("NOTE_COUNT: 1", encoding="utf-8")
+    else:
+        output_path.write_text("READY", encoding="utf-8")
+""",
+        encoding="utf-8",
+    )
+    script.chmod(0o755)
+    return script
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -115,9 +139,10 @@ def test_agent_test_uses_backend_factory(monkeypatch, tmp_path: Path) -> None:
     factory.assert_called_once()
 
 
-def test_agent_test_reports_unimplemented_backend(tmp_path: Path) -> None:
+def test_agent_test_passes_with_codex_backend(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     vault.mkdir()
+    fake_codex = _write_fake_codex(tmp_path)
     cfg_path = tmp_path / "config.yaml"
     cfg_path.write_text(yaml.dump({
         "paths": {
@@ -129,12 +154,12 @@ def test_agent_test_reports_unimplemented_backend(tmp_path: Path) -> None:
         "cache": {"duckdb_path": str(tmp_path / "index.duckdb")},
         "agent": {
             "backend": "codex",
-            "command": "codex",
-            "args": ["exec"],
+            "command": str(fake_codex),
+            "args": [],
             "timeout_seconds": 5,
             "work_dir": str(tmp_path),
         },
     }))
     result = runner.invoke(app, ["agent", "test", "--config", str(cfg_path)])
-    assert result.exit_code == 1
-    assert "not implemented yet" in result.output.lower()
+    assert result.exit_code == 0
+    assert "PASS" in result.output
