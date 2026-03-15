@@ -112,7 +112,7 @@ class ReadwiseClient:
         return payload
 
     def _parse_document(self, raw: dict) -> ReadwiseDocument:
-        raw_id = raw.get("id")
+        raw_id = raw.get("id", raw.get("user_book_id"))
         if not isinstance(raw_id, int):
             raise ReadwiseClientError(f"Readwise document missing integer id: {raw!r}")
 
@@ -184,4 +184,3 @@ def _extract_document_updated_at(
         if highlight.updated_at:
             candidates.append(highlight.updated_at)
     return max(candidates) if candidates else None
-
