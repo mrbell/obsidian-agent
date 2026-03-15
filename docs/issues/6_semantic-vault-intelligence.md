@@ -1,6 +1,6 @@
 # 6 — Semantic Vault Intelligence
 
-**Status**: `open`
+**Status**: `completed`
 **Children**: 6-1, 6-2, 6-3, 6-4, 6-5
 
 ## Vision

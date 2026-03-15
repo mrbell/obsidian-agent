@@ -1,6 +1,6 @@
 # 7 — Resurface and Hygiene
 
-**Status**: `open`
+**Status**: `completed`
 **Children**: 7-1, 7-2
 **Depends on**: 6 (Semantic Vault Intelligence — must be complete first)
 
