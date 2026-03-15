@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shlex
 from pathlib import Path
 
 from obsidian_agent.config import (
@@ -107,9 +108,10 @@ class TestBuildManagedSection:
         cfg = _make_config(tmp_path)
         section = build_managed_section(cfg, FAKE_CONFIG, FAKE_BINARY)
         assert "0 3 * * *" in section
-        assert "index-semantic" not in section.split("0 3 * * *")[1].split("\n")[0]
-        # index (not index-semantic) at 03:00
-        assert "obsidian-agent index " in section or "obsidian-agent index\n" in section
+        # The 03:00 line should be index, not index-semantic
+        index_line = next(l for l in section.splitlines() if l.startswith("0 3 * * *"))
+        assert "index-semantic" not in index_line
+        assert "index" in index_line
 
     def test_contains_semantic_index_entry(self, tmp_path: Path):
         cfg = _make_config(tmp_path)
@@ -129,9 +131,9 @@ class TestBuildManagedSection:
     def test_job_entry_chains_index(self, tmp_path: Path):
         cfg = _make_config(tmp_path)
         section = build_managed_section(cfg, FAKE_CONFIG, FAKE_BINARY)
-        # Each job line should have 'index ... && ... run <job>'
+        # Each job line should have 'index ... && ... run <job>' inside the shell command
         for line in section.splitlines():
-            if "run task_notification" in line:
+            if "task_notification" in line and line[0].isdigit():
                 assert "index" in line
                 assert "&&" in line
 
@@ -166,6 +168,43 @@ class TestBuildManagedSection:
         section = build_managed_section(cfg, FAKE_CONFIG, FAKE_BINARY)
         assert str(cfg.paths.state_dir) in section
         assert ".log" in section
+
+    def test_all_entries_use_sh_lc_wrapper(self, tmp_path: Path):
+        cfg = _make_config(tmp_path)
+        section = build_managed_section(cfg, FAKE_CONFIG, FAKE_BINARY)
+        for line in section.splitlines():
+            if line and line[0].isdigit():
+                assert "/bin/sh -lc " in line, f"Missing /bin/sh -lc in: {line}"
+
+    def test_redirection_is_outside_shell_string(self, tmp_path: Path):
+        """>> logfile must appear after the quoted shell string, not inside it."""
+        cfg = _make_config(tmp_path)
+        section = build_managed_section(cfg, FAKE_CONFIG, FAKE_BINARY)
+        for line in section.splitlines():
+            if line and line[0].isdigit():
+                # The >> redirection must come after the closing quote of the -lc argument
+                sh_lc_pos = line.index("/bin/sh -lc ")
+                quoted_cmd_start = line.index("'", sh_lc_pos)
+                quoted_cmd_end = line.index("'", quoted_cmd_start + 1)
+                redir_pos = line.index(">>")
+                assert redir_pos > quoted_cmd_end, (
+                    f">> appears inside shell string in: {line}"
+                )
+
+    def test_paths_with_spaces_are_quoted(self, tmp_path: Path):
+        spaced_binary = Path("/usr/local/my programs/obsidian-agent")
+        spaced_config = Path("/home/user/my config/config.yaml")
+        cfg = _make_config(tmp_path)
+        section = build_managed_section(cfg, spaced_config, spaced_binary)
+        for line in section.splitlines():
+            if line and line[0].isdigit():
+                # The shell string (between outer single quotes of -lc arg) must
+                # contain shell-quoted versions of the paths, not raw spaces
+                assert "my programs/obsidian-agent" not in line.split("'")[1] or \
+                    shlex.quote(str(spaced_binary)) in line
+                # Simpler check: the unquoted space-containing paths must not appear raw
+                assert "/my programs/obsidian-agent " not in line
+                assert "/my config/config.yaml " not in line
 
 
 # ---------------------------------------------------------------------------

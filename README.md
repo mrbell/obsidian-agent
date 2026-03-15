@@ -73,7 +73,7 @@ uv run obsidian-agent status   # verify the note count looks right
 
 **5. Build the semantic index**
 
-The semantic index involves local embeddings and one LLM call per note. On a large vault, use `max_notes_per_run` in your config to throttle the initial build and run it in batches over a few nights:
+The semantic index has two phases: local embedding (runs for all stale notes) and Claude-driven intelligence extraction (one LLM call per note). On a large vault, use `max_notes_per_run` to cap the intelligence extraction phase and run it in batches over a few nights:
 
 ```yaml
 semantic:
@@ -86,7 +86,7 @@ Then run:
 uv run obsidian-agent index-semantic
 ```
 
-Repeat nightly (or via cron — see below) until caught up. Remove `max_notes_per_run` once the initial build is complete.
+Each run embeds all stale notes and extracts intelligence for up to `max_notes_per_run` of them. Repeat nightly (or via cron — see below) until caught up. Remove `max_notes_per_run` (or set it to `null`) once the initial build is complete.
 
 **6. Test a job**
 

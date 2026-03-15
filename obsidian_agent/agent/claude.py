@@ -142,7 +142,15 @@ class ClaudeBackendAdapter:
                     proc.stderr[:500],
                 )
 
-            output = _extract_output(proc.stdout)
+            is_error, output = _parse_stdout(proc.stdout)
+            if is_error:
+                return WorkerResult(
+                    returncode=1,
+                    output="",
+                    stderr=output,
+                    backend_id=self.backend.backend_id,
+                    model_version=self.backend.model_version,
+                )
             return WorkerResult(
                 returncode=proc.returncode,
                 output=output,
@@ -173,26 +181,32 @@ def _find_mcp_binary() -> Path:
     return Path("obsidian-agent")
 
 
-def _extract_output(stdout: str) -> str:
-    """Extract the model response text from --output-format json stdout."""
+def _parse_stdout(stdout: str) -> tuple[bool, str]:
+    """Parse --output-format json stdout into (is_error, text).
+
+    Returns (True, error_text) if the result object signals is_error=true.
+    Returns (False, output_text) for a successful result or non-JSON raw output.
+    """
     if not stdout.strip():
-        return ""
+        return False, ""
     try:
         data = json.loads(stdout)
         if isinstance(data, dict):
             if data.get("is_error"):
+                err = data.get("result", "") or ""
                 log.error(
                     "Claude backend returned is_error=true. result=%r",
-                    data.get("result", "")[:300],
+                    err[:300],
                 )
-            return data.get("result", "") or ""
+                return True, err
+            return False, data.get("result", "") or ""
     except json.JSONDecodeError:
         pass
     log.warning(
         "Claude backend stdout was not valid JSON result object; using raw output. stdout[:200]=%r",
         stdout[:200],
     )
-    return stdout
+    return False, stdout
 
 
 def _cleanup(path: Path) -> None:

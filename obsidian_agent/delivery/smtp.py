@@ -45,6 +45,6 @@ class SmtpDelivery:
                     [self._cfg.to_address],
                     msg.as_string(),
                 )
-        except smtplib.SMTPException as exc:
+        except (smtplib.SMTPException, OSError) as exc:
             log.error("SMTP delivery failed: %s", exc, exc_info=True)
             raise DeliveryError(f"SMTP delivery failed: {exc}") from exc

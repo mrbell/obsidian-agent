@@ -9,7 +9,7 @@ cache:
 
 semantic:
   model: all-MiniLM-L6-v2
-  max_notes_per_run: 50             # remove or set to null once initial index is built
+  max_notes_per_run: 50             # caps the Claude intelligence phase only; local embeddings always run for all stale notes. Remove or set to null once initial index is built.
 
 indexing:
   schedule: "0 3 * * *"            # structural index — nightly at 03:00

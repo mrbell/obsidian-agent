@@ -5,6 +5,7 @@ replaces rather than appends. Entries outside the markers are untouched.
 """
 from __future__ import annotations
 
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -95,39 +96,46 @@ def build_managed_section(
     schedule after the structural index.
     """
     log_dir = config.paths.state_dir
-    cmd = str(binary)
-    cfg_flag = f"--config {config_path}"
+    qcmd = shlex.quote(str(binary))
+    qcfg = shlex.quote(str(config_path))
+
+    def _entry(schedule: str, chain: str, log_name: str) -> str:
+        qlog = shlex.quote(f"{log_dir}/{log_name}")
+        return f"{schedule} /bin/sh -lc {shlex.quote(chain)} >> {qlog} 2>&1"
 
     lines = [_BEGIN, ""]
 
     # Structural index
-    lines.append(f"# structural index")
+    lines.append("# structural index")
     lines.append(
-        f"{config.indexing.schedule} "
-        f"{cmd} index {cfg_flag} "
-        f">> {log_dir}/index.log 2>&1"
+        _entry(
+            config.indexing.schedule,
+            f"{qcmd} index --config {qcfg}",
+            "index.log",
+        )
     )
     lines.append("")
 
     # Semantic index
-    lines.append(f"# semantic index (embeddings + concept extraction)")
+    lines.append("# semantic index (embeddings + concept extraction)")
     lines.append(
-        f"{config.indexing.semantic_schedule} "
-        f"{cmd} index-semantic {cfg_flag} "
-        f">> {log_dir}/index-semantic.log 2>&1"
+        _entry(
+            config.indexing.semantic_schedule,
+            f"{qcmd} index-semantic --config {qcfg}",
+            "index-semantic.log",
+        )
     )
 
     # Jobs
     for job_name, job_cfg in _enabled_jobs(config):
         lines.append("")
         lines.append(f"# {job_name}")
-        lines.append(
-            f"{job_cfg.schedule} "
-            f"{cmd} index {cfg_flag} && "
-            f"{cmd} run {job_name} {cfg_flag} && "
-            f"{cmd} promote {cfg_flag} "
-            f">> {log_dir}/{job_name}.log 2>&1"
+        chain = (
+            f"{qcmd} index --config {qcfg} && "
+            f"{qcmd} run {job_name} --config {qcfg} && "
+            f"{qcmd} promote --config {qcfg}"
         )
+        lines.append(_entry(job_cfg.schedule, chain, f"{job_name}.log"))
 
     lines.append("")
     lines.append(_END)

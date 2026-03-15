@@ -785,7 +785,8 @@ obsidian-agent mcp                # start the MCP server (used internally; can a
 
 `index` and `index-semantic` are intentionally separate commands:
 - `index` is fast (<5s), deterministic, no LLM. Run before every job.
-- `index-semantic` is slower (LLM calls for changed notes), run on a daily schedule
+- `index-semantic` has two phases: local embedding (all stale notes, unthrottled) and
+  intelligence extraction (LLM call per note, capped by `semantic.max_notes_per_run`). Run on a daily schedule
   independent of per-job cron entries.
 
 `run` and `promote` are intentionally separate steps. They can be chained in a cron entry

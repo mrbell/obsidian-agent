@@ -1,6 +1,6 @@
 # 10-2 — Worker: Treat Claude `is_error` Results as Failures
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 10
 **Children**: —
 **Depends on**: 5-1

@@ -1,6 +1,6 @@
 # 10-6 — SMTP Delivery Hardening
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 10
 **Children**: —
 **Depends on**: 2-2

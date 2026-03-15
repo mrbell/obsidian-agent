@@ -31,8 +31,13 @@ def _make_worker(tmp_path: Path, command: str, args: list[str] | None = None) ->
 
 
 def _json_result(text: str) -> str:
-    """Produce a fake --output-format json response."""
+    """Produce a fake --output-format json success response."""
     return json.dumps({"type": "result", "is_error": False, "result": text})
+
+
+def _json_error(text: str) -> str:
+    """Produce a fake --output-format json error response."""
+    return json.dumps({"type": "result", "is_error": True, "result": text})
 
 
 # ---------------------------------------------------------------------------
@@ -85,6 +90,53 @@ class TestBasicExecution:
         )
         result = worker.run("ignored", with_mcp=False)
         assert "err msg" in result.stderr
+
+
+# ---------------------------------------------------------------------------
+# is_error handling
+# ---------------------------------------------------------------------------
+
+class TestIsErrorHandling:
+    def test_is_error_true_returns_nonzero(self, tmp_path: Path) -> None:
+        response = _json_error("something went wrong")
+        worker = _make_worker(
+            tmp_path,
+            sys.executable,
+            ["-c", f"print({response!r})"],
+        )
+        result = worker.run("ignored", with_mcp=False)
+        assert result.returncode != 0
+
+    def test_is_error_true_output_is_empty(self, tmp_path: Path) -> None:
+        response = _json_error("something went wrong")
+        worker = _make_worker(
+            tmp_path,
+            sys.executable,
+            ["-c", f"print({response!r})"],
+        )
+        result = worker.run("ignored", with_mcp=False)
+        assert result.output == ""
+
+    def test_is_error_true_error_text_in_stderr(self, tmp_path: Path) -> None:
+        response = _json_error("something went wrong")
+        worker = _make_worker(
+            tmp_path,
+            sys.executable,
+            ["-c", f"print({response!r})"],
+        )
+        result = worker.run("ignored", with_mcp=False)
+        assert "something went wrong" in result.stderr
+
+    def test_is_error_false_passes_through(self, tmp_path: Path) -> None:
+        response = _json_result("all good")
+        worker = _make_worker(
+            tmp_path,
+            sys.executable,
+            ["-c", f"print({response!r})"],
+        )
+        result = worker.run("ignored", with_mcp=False)
+        assert result.returncode == 0
+        assert result.output == "all good"
 
 
 # ---------------------------------------------------------------------------

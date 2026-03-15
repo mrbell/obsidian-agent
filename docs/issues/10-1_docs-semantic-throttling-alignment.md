@@ -1,6 +1,6 @@
 # 10-1 — Docs: Semantic Throttling Alignment
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 10
 **Children**: —
 **Depends on**: 6-2

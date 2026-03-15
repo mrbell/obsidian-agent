@@ -1,6 +1,6 @@
 # 10-3 — Cron: Quote Commands and Redirect the Full Job Chain
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 10
 **Children**: —
 **Depends on**: 2-4

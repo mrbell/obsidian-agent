@@ -95,3 +95,21 @@ class TestSmtpDeliverySend:
             delivery = _make_delivery(monkeypatch)
             with pytest.raises(DeliveryError):
                 delivery.send("Subject", "Body")
+
+    def test_connection_refused_raises_delivery_error(self, monkeypatch) -> None:
+        mock_cls = MagicMock()
+        mock_cls.return_value.__enter__.side_effect = ConnectionRefusedError("connection refused")
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+        with patch(_PATCH, mock_cls):
+            delivery = _make_delivery(monkeypatch)
+            with pytest.raises(DeliveryError, match="SMTP delivery failed"):
+                delivery.send("Subject", "Body")
+
+    def test_oserror_raises_delivery_error(self, monkeypatch) -> None:
+        mock_cls = MagicMock()
+        mock_cls.return_value.__enter__.side_effect = OSError("network unreachable")
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+        with patch(_PATCH, mock_cls):
+            delivery = _make_delivery(monkeypatch)
+            with pytest.raises(DeliveryError, match="SMTP delivery failed"):
+                delivery.send("Subject", "Body")
