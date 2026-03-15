@@ -28,7 +28,7 @@ from obsidian_agent.index.store import IndexStore
 _log = logging.getLogger(__name__)
 
 # Default model version tag stored in note_intelligence.model_version
-_DEFAULT_MODEL_VERSION = "claude-sonnet-4-6"
+_DEFAULT_MODEL_VERSION = "claude/claude-sonnet-4-6"
 
 # Regex to locate the outermost JSON object in worker output
 _JSON_OBJECT_RE = re.compile(r"\{.*\}", re.DOTALL)
@@ -513,6 +513,9 @@ def run_semantic_index(
     if worker is None:
         _log.info("No agent worker configured; skipping intelligence phase.")
         return embedding_stats, None
+
+    if model_version == _DEFAULT_MODEL_VERSION and worker.backend.model_version:
+        model_version = worker.backend.model_version
 
     intelligence_stats = run_intelligence_phase(
         store, worker,

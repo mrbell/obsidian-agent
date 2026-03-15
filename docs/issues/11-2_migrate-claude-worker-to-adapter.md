@@ -1,6 +1,6 @@
 # 11-2 — Migrate Claude Worker to Backend Adapter
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 11
 **Children**: —
 **Depends on**: 11-1

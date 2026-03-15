@@ -112,8 +112,8 @@ def index_semantic(
 
     worker = None
     if cfg.agent:
-        from obsidian_agent.agent.worker import ClaudeCodeWorker
-        worker = ClaudeCodeWorker(
+        from obsidian_agent.agent.claude import ClaudeBackendAdapter
+        worker = ClaudeBackendAdapter(
             cfg=cfg.agent,
             vault_path=cfg.paths.vault,
             db_path=cfg.cache.duckdb_path,
@@ -371,7 +371,7 @@ def agent_test(
     With --mcp, also verifies the worker can connect to the vault MCP server
     and call a vault tool successfully.
     """
-    from obsidian_agent.agent.worker import ClaudeCodeWorker
+    from obsidian_agent.agent.claude import ClaudeBackendAdapter
 
     cfg = _load(config, verbose)
 
@@ -382,7 +382,7 @@ def agent_test(
         )
         raise typer.Exit(1)
 
-    worker = ClaudeCodeWorker(
+    worker = ClaudeBackendAdapter(
         cfg=cfg.agent,
         vault_path=cfg.paths.vault,
         db_path=cfg.cache.duckdb_path,
@@ -461,7 +461,7 @@ def run(
     import logging
     from datetime import date
 
-    from obsidian_agent.agent.worker import ClaudeCodeWorker
+    from obsidian_agent.agent.claude import ClaudeBackendAdapter
     from obsidian_agent.context import JobContext
     from obsidian_agent.delivery.base import DeliveryError
     from obsidian_agent.delivery.smtp import SmtpDelivery
@@ -487,7 +487,7 @@ def run(
 
     worker = None
     if cfg.agent:
-        worker = ClaudeCodeWorker(
+        worker = ClaudeBackendAdapter(
             cfg=cfg.agent,
             vault_path=cfg.paths.vault,
             db_path=cfg.cache.duckdb_path,

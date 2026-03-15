@@ -4,10 +4,12 @@ from obsidian_agent.agent.base import (
     AgentWorker,
     WorkerResult,
 )
+from obsidian_agent.agent.claude import ClaudeBackendAdapter
 
 __all__ = [
     "AgentBackend",
     "AgentCapabilities",
     "AgentWorker",
     "WorkerResult",
+    "ClaudeBackendAdapter",
 ]

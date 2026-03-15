@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from obsidian_agent.agent.worker import ClaudeCodeWorker, WorkerResult
+from obsidian_agent.agent.base import WorkerResult
+from obsidian_agent.agent.claude import ClaudeBackendAdapter
 from obsidian_agent.config import AgentConfig
 
 
@@ -14,14 +15,14 @@ from obsidian_agent.config import AgentConfig
 # Fixtures
 # ---------------------------------------------------------------------------
 
-def _make_worker(tmp_path: Path, command: str, args: list[str] | None = None) -> ClaudeCodeWorker:
+def _make_worker(tmp_path: Path, command: str, args: list[str] | None = None) -> ClaudeBackendAdapter:
     cfg = AgentConfig(
         command=command,
         args=args or [],
         timeout_seconds=5,
         work_dir=tmp_path / "workdir",
     )
-    return ClaudeCodeWorker(
+    return ClaudeBackendAdapter(
         cfg=cfg,
         vault_path=tmp_path / "vault",
         db_path=tmp_path / "index.duckdb",
@@ -38,6 +39,20 @@ def _json_result(text: str) -> str:
 # ---------------------------------------------------------------------------
 
 class TestBasicExecution:
+    def test_backend_metadata_is_reported(self, tmp_path: Path) -> None:
+        worker = _make_worker(tmp_path, sys.executable, ["-c", "print('hi')"])
+        result = worker.run("ignored", with_mcp=False)
+        assert result.backend_id == "claude"
+        assert result.model_version == "claude/claude-sonnet-4-6"
+
+    def test_backend_metadata_uses_explicit_model_arg(self, tmp_path: Path) -> None:
+        worker = _make_worker(
+            tmp_path,
+            sys.executable,
+            ["--model", "claude-opus-4-1", "-c", "print('hi')"],
+        )
+        assert worker.backend.model_version == "claude/claude-opus-4-1"
+
     def test_captures_stdout(self, tmp_path: Path) -> None:
         worker = _make_worker(tmp_path, sys.executable, ["-c", "import sys; print('hello')"])
         result = worker.run("ignored", with_mcp=False)
@@ -83,7 +98,7 @@ class TestTimeout:
             timeout_seconds=1,
             work_dir=tmp_path,
         )
-        worker = ClaudeCodeWorker(cfg=cfg, vault_path=tmp_path, db_path=tmp_path)
+        worker = ClaudeBackendAdapter(cfg=cfg, vault_path=tmp_path, db_path=tmp_path)
         result = worker.run("ignored", with_mcp=False)
         assert result.returncode != 0
         assert "timeout" in result.stderr.lower()
@@ -95,7 +110,7 @@ class TestTimeout:
             timeout_seconds=1,
             work_dir=tmp_path,
         )
-        worker = ClaudeCodeWorker(cfg=cfg, vault_path=tmp_path, db_path=tmp_path)
+        worker = ClaudeBackendAdapter(cfg=cfg, vault_path=tmp_path, db_path=tmp_path)
         result = worker.run("ignored", with_mcp=False)
         assert result.output == ""
 
