@@ -9,7 +9,7 @@ from obsidian_agent.config import Config
 from obsidian_agent.index.store import IndexStore
 
 if TYPE_CHECKING:
-    from obsidian_agent.agent.worker import ClaudeCodeWorker
+    from obsidian_agent.agent.base import AgentWorker
     from obsidian_agent.delivery.base import Delivery
 
 
@@ -24,7 +24,7 @@ class JobContext:
     config: Config
     today: date
     delivery: Delivery | None = None
-    worker: ClaudeCodeWorker | None = None
+    worker: AgentWorker | None = None
     logger: logging.Logger = field(
         default_factory=lambda: logging.getLogger("obsidian_agent.jobs")
     )

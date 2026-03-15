@@ -18,8 +18,9 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any
 
+from obsidian_agent.agent.base import AgentWorker
 from obsidian_agent.embeddings.base import Embedder
 from obsidian_agent.index.chunker import chunk_note
 from obsidian_agent.index.store import IndexStore
@@ -31,24 +32,6 @@ _DEFAULT_MODEL_VERSION = "claude-sonnet-4-6"
 
 # Regex to locate the outermost JSON object in worker output
 _JSON_OBJECT_RE = re.compile(r"\{.*\}", re.DOTALL)
-
-
-# ---------------------------------------------------------------------------
-# Worker protocol (avoids importing agent/worker.py from index package)
-# ---------------------------------------------------------------------------
-
-class AgentWorker(Protocol):
-    """Minimal interface required from a Claude Code worker."""
-
-    def run(
-        self,
-        prompt: str,
-        *,
-        web_search: bool,
-        with_mcp: bool,
-    ) -> Any:
-        """Run with a prompt; returns an object with .returncode and .output."""
-        ...
 
 
 # ---------------------------------------------------------------------------

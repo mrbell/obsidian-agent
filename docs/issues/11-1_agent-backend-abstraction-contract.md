@@ -1,6 +1,6 @@
 # 11-1 — Agent Backend Abstraction and Capability Contract
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 11
 **Children**: —
 **Depends on**: 5-1

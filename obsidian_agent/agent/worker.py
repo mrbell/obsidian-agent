@@ -10,6 +10,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
+from obsidian_agent.agent.base import AgentBackend, AgentCapabilities, WorkerResult
 from obsidian_agent.config import AgentConfig
 
 log = logging.getLogger(__name__)
@@ -29,14 +30,6 @@ _MCP_TOOLS = [
 ]
 _MCP_ALLOWED = ",".join(f"mcp__{_MCP_SERVER}__{t}" for t in _MCP_TOOLS)
 
-
-@dataclass(frozen=True)
-class WorkerResult:
-    returncode: int
-    output: str   # model response text (parsed from --output-format json)
-    stderr: str
-
-
 @dataclass
 class ClaudeCodeWorker:
     """Invokes Claude Code headlessly with the vault MCP server registered.
@@ -48,6 +41,17 @@ class ClaudeCodeWorker:
     vault_path: Path
     db_path: Path
     config_path: Path | None = None
+
+    @property
+    def backend(self) -> AgentBackend:
+        return AgentBackend(
+            backend_id="claude",
+            capabilities=AgentCapabilities(
+                mcp=True,
+                web_search=True,
+                structured_output=True,
+            ),
+        )
 
     def run(
         self,
