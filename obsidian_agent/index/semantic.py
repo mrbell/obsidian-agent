@@ -289,6 +289,26 @@ def _extract_json(text: str) -> dict[str, Any] | None:
     return None
 
 
+def _derive_context_snippet(entity_name: str, chunk_text: str, window: int = 80) -> str:
+    """Extract a short excerpt from chunk_text centered on entity_name.
+
+    Searches case-insensitively. Falls back to the first 2*window chars if the
+    entity name is not found in the text.
+    """
+    idx = chunk_text.lower().find(entity_name.lower())
+    if idx == -1:
+        excerpt = chunk_text[:window * 2].strip()
+        return (excerpt + "…") if len(chunk_text) > window * 2 else excerpt
+    start = max(0, idx - window)
+    end = min(len(chunk_text), idx + len(entity_name) + window)
+    excerpt = chunk_text[start:end].strip()
+    if start > 0:
+        excerpt = "…" + excerpt
+    if end < len(chunk_text):
+        excerpt = excerpt + "…"
+    return excerpt
+
+
 def _get_or_create_concept(conn: Any, name: str) -> int:
     existing = conn.execute(
         "SELECT id FROM concepts WHERE name = ?", [name]
@@ -322,6 +342,7 @@ def _store_extraction(
     store: IndexStore,
     note_relpath: str,
     chunk_ids: list[str],
+    chunk_texts: list[str],
     data: dict[str, Any],
     model_version: str,
 ) -> None:
@@ -372,11 +393,13 @@ def _store_extraction(
         chunk_index = int(entity.get("chunk_index", 0))
         chunk_index = max(0, min(chunk_index, n_chunks - 1)) if n_chunks else 0
         chunk_id = chunk_ids[chunk_index] if chunk_ids else ""
+        chunk_text = chunk_texts[chunk_index] if chunk_texts else ""
         entity_id = _get_or_create_entity(conn, name, entity_type)
+        snippet = _derive_context_snippet(name, chunk_text) if chunk_text else None
         conn.execute(
             "INSERT INTO chunk_entities (chunk_id, entity_id, context_snippet) VALUES (?, ?, ?)"
             " ON CONFLICT (chunk_id, entity_id) DO UPDATE SET context_snippet = excluded.context_snippet",
-            [chunk_id, entity_id, None],
+            [chunk_id, entity_id, snippet],
         )
 
     # --- implicit_items ---
@@ -472,7 +495,7 @@ def run_intelligence_phase(
         conn = store.conn
         conn.execute("BEGIN TRANSACTION")
         try:
-            _store_extraction(store, note_relpath, chunk_ids, data, model_version)
+            _store_extraction(store, note_relpath, chunk_ids, chunk_texts, data, model_version)
             conn.execute("COMMIT")
             stats.notes_processed += 1
         except Exception as exc:

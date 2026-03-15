@@ -11,6 +11,7 @@ import pytest
 from obsidian_agent.index.build_index import build_index
 from obsidian_agent.index.semantic import (
     _build_extraction_prompt,
+    _derive_context_snippet,
     _extract_json,
     run_embedding_phase,
     run_intelligence_phase,
@@ -191,6 +192,142 @@ class TestEntitiesStored:
         rows = {row for row in store.conn.execute("SELECT name, type FROM entities").fetchall()}
         assert ("PyTorch", "tool") in rows
         assert ("Yann LeCun", "person") in rows
+
+
+# ---------------------------------------------------------------------------
+# Context snippet derivation
+# ---------------------------------------------------------------------------
+
+class TestDeriveContextSnippet:
+    def test_entity_found_in_text(self) -> None:
+        text = "This note is about PyTorch and its autograd system."
+        snippet = _derive_context_snippet("PyTorch", text)
+        assert "PyTorch" in snippet
+
+    def test_entity_not_found_falls_back_to_start(self) -> None:
+        text = "A" * 200
+        snippet = _derive_context_snippet("NotPresent", text)
+        assert len(snippet) <= 165  # 160 chars + possible ellipsis
+
+    def test_case_insensitive_match(self) -> None:
+        text = "Uses pytorch under the hood."
+        snippet = _derive_context_snippet("PyTorch", text)
+        assert "pytorch" in snippet.lower()
+
+    def test_short_text_no_ellipsis(self) -> None:
+        text = "Short text about PyTorch."
+        snippet = _derive_context_snippet("PyTorch", text)
+        assert "…" not in snippet
+
+    def test_long_text_gets_ellipsis(self) -> None:
+        prefix = "x" * 200
+        suffix = "y" * 200
+        text = f"{prefix} PyTorch {suffix}"
+        snippet = _derive_context_snippet("PyTorch", text)
+        assert "PyTorch" in snippet
+        assert snippet.startswith("…")
+        assert snippet.endswith("…")
+
+
+# ---------------------------------------------------------------------------
+# Entity context snippets stored
+# ---------------------------------------------------------------------------
+
+class TestEntityContextSnippets:
+    def test_context_snippet_not_null(
+        self, vault: Path, store: IndexStore, embedder: FakeEmbedder
+    ) -> None:
+        _setup_embedded_note(vault, store, embedder)
+        worker = FakeWorker(response=_SAMPLE_RESPONSE)
+        run_intelligence_phase(store, worker)
+        rows = store.conn.execute(
+            "SELECT context_snippet FROM chunk_entities"
+        ).fetchall()
+        assert rows, "No chunk_entities rows found"
+        for (snippet,) in rows:
+            assert snippet is not None, "context_snippet should not be NULL"
+            assert isinstance(snippet, str)
+            assert len(snippet) > 0
+
+    def test_entity_found_in_text_produces_relevant_snippet(
+        self, vault: Path, store: IndexStore, embedder: FakeEmbedder
+    ) -> None:
+        # Write a note that actually contains an entity name so snippet is non-trivial
+        (vault / "ml.md").write_text(
+            "# ML Note\n\nWe use PyTorch for all our experiments.\n" * 5,
+            encoding="utf-8",
+        )
+        from obsidian_agent.index.build_index import build_index as _build_index
+        _build_index(vault, store)
+        run_embedding_phase(vault, store, embedder)
+
+        response = {
+            "summary": "Note about PyTorch experiments.",
+            "concepts": [],
+            "entities": [{"name": "PyTorch", "type": "tool", "chunk_index": 0}],
+            "implicit_items": [],
+        }
+        worker = FakeWorker(response=response)
+        run_intelligence_phase(store, worker)
+
+        row = store.conn.execute(
+            """SELECT ce.context_snippet FROM chunk_entities ce
+               JOIN entities e ON e.id = ce.entity_id
+               WHERE e.name = 'PyTorch'"""
+        ).fetchone()
+        assert row is not None
+        assert "PyTorch" in row[0]
+
+
+# ---------------------------------------------------------------------------
+# Backfill script
+# ---------------------------------------------------------------------------
+
+class TestBackfill:
+    def test_backfill_updates_null_rows(
+        self, vault: Path, store: IndexStore, embedder: FakeEmbedder
+    ) -> None:
+        _setup_embedded_note(vault, store, embedder)
+        # Manually insert entity with NULL snippet (simulates pre-fix DB)
+        store.conn.execute(
+            "INSERT INTO entities (id, name, type) VALUES (1, 'TestEntity', 'tool')"
+        )
+        chunk_id = store.conn.execute(
+            "SELECT id FROM chunks LIMIT 1"
+        ).fetchone()[0]
+        store.conn.execute(
+            "INSERT INTO chunk_entities (chunk_id, entity_id, context_snippet) VALUES (?, 1, NULL)",
+            [chunk_id],
+        )
+        null_count = store.conn.execute(
+            "SELECT count(*) FROM chunk_entities WHERE context_snippet IS NULL"
+        ).fetchone()[0]
+        assert null_count == 1
+
+        store.conn.close()  # release write lock before backfill opens its own connection
+
+        from scripts.backfill_entity_snippets import backfill
+        backfill(store._db_path)
+
+        store.conn = __import__("duckdb").connect(str(store._db_path))
+        null_after = store.conn.execute(
+            "SELECT count(*) FROM chunk_entities WHERE context_snippet IS NULL"
+        ).fetchone()[0]
+        assert null_after == 0
+
+    def test_backfill_is_idempotent(
+        self, vault: Path, store: IndexStore, embedder: FakeEmbedder
+    ) -> None:
+        _setup_embedded_note(vault, store, embedder)
+        worker = FakeWorker(response=_SAMPLE_RESPONSE)
+        run_intelligence_phase(store, worker)
+
+        store.conn.close()
+
+        from scripts.backfill_entity_snippets import backfill
+        # No NULL rows exist — backfill should return 0
+        count = backfill(store._db_path)
+        assert count == 0
 
 
 # ---------------------------------------------------------------------------

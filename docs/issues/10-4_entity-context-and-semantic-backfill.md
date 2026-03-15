@@ -1,6 +1,6 @@
 # 10-4 — Entity Context Snippets and Semantic Backfill
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 10
 **Children**: —
 **Depends on**: 6-3, 6-5
