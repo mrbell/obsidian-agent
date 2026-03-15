@@ -1,6 +1,6 @@
 # 9-1 — Readwise ingestion job
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 9
 
 ## Description

@@ -177,6 +177,23 @@ def create_server(
         return _tools.fetch_feed(url)
 
     @mcp.tool()
+    def get_unlinked_related_notes(
+        min_score: float = 0.5,
+        n: int = 20,
+    ) -> list[dict[str, Any]]:
+        """Return pairs of conceptually related notes that share no wikilink.
+
+        Computes concept-overlap scores across all note pairs and filters out
+        pairs where either note already links to the other. Returns the top N
+        pairs sorted by overlap_score descending.
+
+        min_score: minimum overlap score to include (default 0.5)
+        n: maximum number of pairs to return (default 20)
+        Each entry has: note_a, note_b, overlap_score.
+        """
+        return _tools.get_unlinked_related_notes_mcp(store, min_score=min_score, n=n)
+
+    @mcp.tool()
     def get_implicit_items(
         type: str | None = None,
         since: str | None = None,

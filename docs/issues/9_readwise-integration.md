@@ -1,6 +1,6 @@
 # 9 — Readwise Integration
 
-**Status**: `open`
+**Status**: `completed`
 
 ## Description
 

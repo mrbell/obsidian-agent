@@ -366,6 +366,19 @@ def fetch_feed(url: str, max_items: int = 50) -> list[dict[str, Any]]:
     raise ValueError(f"Unrecognised feed format at {url!r}: root element is <{tag}>")
 
 
+def get_unlinked_related_notes_mcp(
+    store: IndexStore,
+    min_score: float = 0.5,
+    n: int = 20,
+) -> list[dict[str, Any]]:
+    """Return pairs of conceptually related notes that share no wikilink."""
+    pairs = sq.find_unlinked_related_notes(store.conn, min_score=min_score, n=n)
+    return [
+        {"note_a": note_a, "note_b": note_b, "overlap_score": score}
+        for note_a, note_b, score in pairs
+    ]
+
+
 def get_implicit_items_mcp(
     store: IndexStore,
     item_type: str | None = None,

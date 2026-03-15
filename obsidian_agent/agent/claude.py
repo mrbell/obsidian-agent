@@ -27,6 +27,7 @@ _MCP_TOOLS = [
     "search_similar", "get_note_summary", "find_related_notes", "list_concepts",
     "search_by_concept", "get_entity_context", "get_recent_concepts",
     "get_stale_concepts", "fetch_feed", "get_implicit_items",
+    "get_unlinked_related_notes",
 ]
 _MCP_ALLOWED = ",".join(f"mcp__{_MCP_SERVER}__{t}" for t in _MCP_TOOLS)
 _DEFAULT_MODEL_VERSION = "claude/claude-sonnet-4-6"

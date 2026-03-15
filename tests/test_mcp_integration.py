@@ -43,6 +43,7 @@ EXPECTED_TOOLS = {
     "get_implicit_items",
     # Semantic tools (Milestone 7)
     "get_stale_concepts",
+    "get_unlinked_related_notes",
     # Feed tool (Milestone 8-2)
     "fetch_feed",
 }

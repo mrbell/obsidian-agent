@@ -67,10 +67,10 @@ Look for four types of issues:
    to check how widely an idea recurs. Reference the specific notes where it appears.
 
 3. Possible missing wikilinks
-   Use find_related_notes to identify pairs of notes that are highly conceptually
-   related but likely not linked. Cross-check with get_note_links to confirm neither
-   note already links to the other. Only surface strong, specific relationships —
-   not generic overlaps. Describe concretely what the relationship is.
+   Call get_unlinked_related_notes (n=20) once — it returns pre-computed pairs of
+   notes that share strong concept overlap but no wikilink in either direction.
+   Review the returned pairs and select only those with a specific, concrete
+   relationship worth surfacing. Describe what connects them.
 
 4. Orphaned threads
    Use get_stale_concepts with a date roughly 90 days ago ({_ninety_days_before(today_str)})

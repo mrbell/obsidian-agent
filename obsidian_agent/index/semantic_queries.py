@@ -433,10 +433,10 @@ def find_unlinked_related_notes(
             WHERE l.kind = 'wikilink'
               AND (
                 (l.note_relpath = co.note_a
-                 AND l.target LIKE '%' || REPLACE(co.note_b, '.md', '') || '%')
+                 AND l.target LIKE '%' || regexp_extract(co.note_b, '([^/]+)[.]md$', 1) || '%')
                 OR
                 (l.note_relpath = co.note_b
-                 AND l.target LIKE '%' || REPLACE(co.note_a, '.md', '') || '%')
+                 AND l.target LIKE '%' || regexp_extract(co.note_a, '([^/]+)[.]md$', 1) || '%')
               )
         )
         ORDER BY co.overlap_score DESC
