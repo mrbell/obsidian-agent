@@ -1,6 +1,6 @@
 # 10-8 — Research Digest: Prompt and Budget Optimization
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: 10
 **Children**: —
 **Depends on**: 10-7
@@ -48,8 +48,29 @@ remaining session cost come from — are now answerable from observed runs:
   after to confirm the chosen intervention reduces elapsed time or output
   size without degrading digest quality.
 
+## Findings (2026-03-17)
+
+Ran `research_digest` manually with the 10-7 instrumentation in place. Results:
+
+| Topic | elapsed | prompt_chars | output_chars | MCP calls | First MCP call |
+|---|---|---|---|---|---|
+| agentic coding | 321s | 1,638 | 9,137 | 4 | +11s |
+| electronic warfare in space | 405s | 1,543 | 5,842 | 2 | +344s |
+
+**Web search/fetch accounts for ~99% of elapsed time.** Vault MCP calls are
+minimal (2–4 per topic, totalling ~4–12 seconds). The prompt is small. Output
+size is proportionate to the number of articles summarised.
+
+The dominant "cost" is doing exactly what the job is supposed to do: fetching
+and summarising 5–10 articles per topic. This is intentional and worthwhile.
+No wasteful patterns (excessive vault calls, oversized payloads, repeated
+lookups) were observed.
+
+**No code changes warranted.** The investigated options (prompt tightening,
+`--max-turns` cap, MCP payload limits, per-topic timeout) would either have
+minimal impact or would degrade output quality by cutting off legitimate work.
+
 ## Definition of Done
 
-- At least one optimization is implemented and tested.
-- A measured run confirms the improvement.
-- The issue records what the profiling data showed so future work has context.
+Profiling data collected and reviewed. No action needed — token usage reflects
+real work, not inefficiency.

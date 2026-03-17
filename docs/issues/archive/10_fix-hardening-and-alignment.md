@@ -1,8 +1,8 @@
 # 10 — Fix Hardening and Design Alignment
 
-**Status**: `open`
+**Status**: `completed`
 **Parent**: —
-**Children**: 10-1, 10-2, 10-3, 10-4, 10-5, 10-6, 10-7
+**Children**: 10-1, 10-2, 10-3, 10-4, 10-5, 10-6, 10-7, 10-8
 **Depends on**: 1, 4, 5, 6, 8
 
 ## Description
@@ -39,6 +39,7 @@ All implementation work under this milestone should follow red/green TDD:
 - **10-5**: Wikilink normalization and incoming-link correctness
 - **10-6**: SMTP delivery hardening for network/system failures
 - **10-7**: MCP search performance and context-budget follow-up
+- **10-8**: Research digest prompt and budget optimization
 
 ## Definition of Done
 
