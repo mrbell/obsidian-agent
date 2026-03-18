@@ -108,7 +108,9 @@ The main log (`logs/obsidian-agent.log`) is the best starting point for diagnosi
 
 ## DuckDB Concurrency
 
-Only `index` and `index-semantic` open the DB in **write mode**. All other commands (`run`, `status`, MCP server) open it **read-only** (`IndexStore(path, read_only=True)`). This allows multiple concurrent readers (e.g. a job and its MCP server subprocess) without lock conflicts.
+Only `index` and `index-semantic` open the DB in **write mode**. All other commands (`run`, `status`) open it **read-only** (`IndexStore(path, read_only=True)`).
+
+The MCP server uses a **per-request connection pattern**: it opens a fresh read-only `IndexStore` for each tool call and closes it before returning. This means the MCP server holds no persistent lock, so index write jobs can always acquire an exclusive lock even while the MCP server process is running.
 
 ---
 

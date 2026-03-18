@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Generator
 
 from mcp.server.fastmcp import FastMCP
 
@@ -17,14 +18,22 @@ def create_server(
 ) -> FastMCP:
     """Create and return a configured MCP server instance.
 
-    The server holds an open IndexStore for the lifetime of the process.
-    All exposed tools are read-only.
+    Each tool call opens a fresh read-only IndexStore connection and closes it
+    before returning. This avoids holding a persistent DuckDB lock, which would
+    block the nightly index write jobs.
 
     The LocalEmbedder for semantic search is loaded lazily on the first
     search_similar call (model download ~80MB on first use).
     """
     mcp = FastMCP("obsidian-vault")
-    store = IndexStore(db_path, read_only=True)
+
+    @contextmanager
+    def _store() -> Generator[IndexStore, None, None]:
+        s = IndexStore(db_path, read_only=True)
+        try:
+            yield s
+        finally:
+            s.close()
 
     # Lazy embedder: initialized once on first semantic search call
     _embedder_holder: list[Any] = [None]
@@ -46,7 +55,8 @@ def create_server(
         Requires the semantic index to be built (obsidian-agent index-semantic).
         Returns [] if the semantic index is absent.
         """
-        return _tools.search_notes(store, query, limit=limit)
+        with _store() as store:
+            return _tools.search_notes(store, query, limit=limit)
 
     @mcp.tool()
     def get_note(path: str) -> str:
@@ -59,7 +69,8 @@ def create_server(
         include_daily: bool = True,
     ) -> list[dict[str, Any]]:
         """List notes in the vault. Optionally filter by folder prefix and exclude daily notes."""
-        return _tools.list_notes(store, folder=folder, include_daily=include_daily)
+        with _store() as store:
+            return _tools.list_notes(store, folder=folder, include_daily=include_daily)
 
     @mcp.tool()
     def get_daily_notes(start_date: str, end_date: str) -> list[dict[str, Any]]:
@@ -67,7 +78,8 @@ def create_server(
 
         Dates must be ISO format strings: 'YYYY-MM-DD'.
         """
-        return _tools.get_daily_notes(vault_path, store, start_date, end_date)
+        with _store() as store:
+            return _tools.get_daily_notes(vault_path, store, start_date, end_date)
 
     @mcp.tool()
     def query_tasks(
@@ -79,22 +91,26 @@ def create_server(
         status: 'open' | 'done' | 'cancelled' | 'in_progress'
         due_before: ISO date string — only tasks due on or before this date
         """
-        return _tools.query_tasks(store, status=status, due_before=due_before)
+        with _store() as store:
+            return _tools.query_tasks(store, status=status, due_before=due_before)
 
     @mcp.tool()
     def get_note_links(path: str) -> dict[str, list[str]]:
         """Get outgoing and incoming wikilinks/markdown links for a note."""
-        return _tools.get_note_links(store, path)
+        with _store() as store:
+            return _tools.get_note_links(store, path)
 
     @mcp.tool()
     def find_notes_by_tag(tag: str) -> list[str]:
         """Find all notes that have a given tag (inline or frontmatter)."""
-        return _tools.find_notes_by_tag(store, tag)
+        with _store() as store:
+            return _tools.find_notes_by_tag(store, tag)
 
     @mcp.tool()
     def get_vault_stats() -> dict[str, Any]:
         """Get summary statistics: note count, task count, last indexed timestamp."""
-        return _tools.get_vault_stats(store)
+        with _store() as store:
+            return _tools.get_vault_stats(store)
 
     # -------------------------------------------------------------------------
     # Semantic tools (Milestone 6-5)
@@ -107,7 +123,8 @@ def create_server(
         Requires the semantic index to be built (obsidian-agent index-semantic).
         Returns [] with no error if the semantic index is absent.
         """
-        return _tools.search_similar(store, _get_embedder(), query, n=n)
+        with _store() as store:
+            return _tools.search_similar(store, _get_embedder(), query, n=n)
 
     @mcp.tool()
     def get_note_summary(note_relpath: str) -> str | None:
@@ -115,7 +132,8 @@ def create_server(
 
         Returns None if the note has no summary yet (run index-semantic first).
         """
-        return _tools.get_note_summary(store, note_relpath)
+        with _store() as store:
+            return _tools.get_note_summary(store, note_relpath)
 
     @mcp.tool()
     def find_related_notes(note_relpath: str, n: int = 5) -> list[dict[str, Any]]:
@@ -124,7 +142,8 @@ def create_server(
         Similarity is based on shared concepts weighted by salience.
         Returns each related note's path, overlap score, and summary (if available).
         """
-        return _tools.find_related_notes_semantic(store, note_relpath, n=n)
+        with _store() as store:
+            return _tools.find_related_notes_semantic(store, note_relpath, n=n)
 
     @mcp.tool()
     def list_concepts(n: int = 30) -> list[dict[str, Any]]:
@@ -132,7 +151,8 @@ def create_server(
 
         Each entry has: name, note_count, avg_salience.
         """
-        return _tools.list_concepts_mcp(store, n=n)
+        with _store() as store:
+            return _tools.list_concepts_mcp(store, n=n)
 
     @mcp.tool()
     def search_by_concept(concept: str, n: int = 10) -> list[dict[str, Any]]:
@@ -140,7 +160,8 @@ def create_server(
 
         Returns chunks sorted by salience: path, text, section_header, salience.
         """
-        return _tools.search_by_concept_mcp(store, concept, n=n)
+        with _store() as store:
+            return _tools.search_by_concept_mcp(store, concept, n=n)
 
     @mcp.tool()
     def get_entity_context(name: str, n: int = 10) -> list[dict[str, Any]]:
@@ -149,7 +170,8 @@ def create_server(
         Useful for: people, projects, tools, book titles, locations.
         Returns: path, text, section_header, context snippet.
         """
-        return _tools.get_entity_context_mcp(store, name, n=n)
+        with _store() as store:
+            return _tools.get_entity_context_mcp(store, name, n=n)
 
     @mcp.tool()
     def get_recent_concepts(days: int = 14, n: int = 20) -> list[dict[str, Any]]:
@@ -158,7 +180,8 @@ def create_server(
         Useful for understanding what the user has been thinking about recently.
         Each entry has: name, note_count, avg_salience.
         """
-        return _tools.get_recent_concepts_mcp(store, days=days, n=n)
+        with _store() as store:
+            return _tools.get_recent_concepts_mcp(store, days=days, n=n)
 
     @mcp.tool()
     def get_stale_concepts(inactive_before: str, n: int = 20) -> list[dict[str, Any]]:
@@ -168,7 +191,8 @@ def create_server(
         Useful for finding 'orphaned threads' — ideas the user was active on that have
         since gone quiet. Each entry has: name, last_seen_date, note_count, avg_salience.
         """
-        return _tools.get_stale_concepts_mcp(store, inactive_before=inactive_before, n=n)
+        with _store() as store:
+            return _tools.get_stale_concepts_mcp(store, inactive_before=inactive_before, n=n)
 
     @mcp.tool()
     def fetch_feed(url: str) -> list[dict[str, Any]]:
@@ -195,7 +219,8 @@ def create_server(
         n: maximum number of pairs to return (default 20)
         Each entry has: note_a, note_b, overlap_score.
         """
-        return _tools.get_unlinked_related_notes_mcp(store, min_score=min_score, n=n)
+        with _store() as store:
+            return _tools.get_unlinked_related_notes_mcp(store, min_score=min_score, n=n)
 
     @mcp.tool()
     def get_implicit_items(
@@ -209,7 +234,8 @@ def create_server(
         since: ISO date string — only items from notes modified on or after this date
         Each entry has: path, type, text.
         """
-        return _tools.get_implicit_items_mcp(store, item_type=type, since=since, n=n)
+        with _store() as store:
+            return _tools.get_implicit_items_mcp(store, item_type=type, since=since, n=n)
 
     return mcp
 
