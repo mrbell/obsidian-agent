@@ -272,6 +272,81 @@ new input source. Design when M7 is closer to complete.
 
 ---
 
+### 8. Readwise-Vault Bridge Notes
+
+**What it is**: When Readwise articles are promoted into the vault, automatically generate
+a brief "bridge note" for each — a few bullets surfacing how the article connects to existing
+vault notes. Deposited to `BotInbox/readwise_bridges/`.
+
+**Why it's distinctive**: Readwise articles currently land as isolated nodes in `Readwise/`.
+The vault graph treats them as orphans unless the user manually creates links. The semantic
+index already knows which vault notes share conceptual ground with any given article —
+this job closes the loop by making that connection explicit at ingestion time, while the
+reading is still fresh.
+
+**Examples**:
+- \"This article on attention mechanisms connects to your notes on *Transformers* and *Cognitive Load*.\"
+- \"You've written about this tradeoff before — see your note from eight months ago on *simplicity vs. expressiveness*.\"
+
+**Depends on**: `get_unlinked_related_notes`, `search_similar`, `get_note` (all built),
+Readwise integration (built), worker (M5), promoter (M3)
+
+**Status**: Imagined. All infrastructure is in place. Class B job.
+
+---
+
+### 9. Morning Brief
+
+**What it is**: A daily email that replaces or supplements `task_notification` with a
+richer morning context: today's due tasks, 2-3 active vault concepts from recent notes,
+a recent Readwise highlight or two, and one open implicit item (question or intention)
+from the vault. One cohesive, personalized email rather than a narrowly-scoped reminder.
+
+**Why it's distinctive**: `task_notification` is silent on days with no due tasks — most
+days. A daily brief makes the system feel present and useful every morning, turning a
+"reminders tool" into a genuine second brain touchpoint. It surfaces what's alive in the
+vault without requiring the user to open it.
+
+**Examples**:
+- Header: tasks due today. Body: \"You've been thinking about *agentic workflows* and *context windows* lately.
+  Here's a question you noted two weeks ago that you haven't resolved yet. Here's a highlight
+  from the paper you saved yesterday.\"
+
+**Depends on**: `query_tasks`, `get_recent_concepts`, `get_implicit_items`, `get_note`
+(all built), SMTP delivery (built). Class A — no LLM needed.
+
+**Status**: Imagined. No new infrastructure required.
+
+---
+
+### 10. Concept Evolution Report
+
+**What it is**: A monthly report showing how concepts in the vault have changed over time —
+what the user was writing about a year ago vs. now, which concepts were once active and have
+gone quiet, and which new concepts have emerged in the past quarter. Deposited to
+`BotInbox/concept_evolution/`.
+
+**Why it's distinctive**: The semantic index has temporal data (`mtime_ns`, `extracted_at`)
+that no current job uses. The vault is a longitudinal record of thinking, but the existing
+jobs only look at recency. This report makes the *arc* of a user's thinking visible: what
+was a preoccupation in January that's since been abandoned, what threads have quietly grown
+over six months. That longitudinal view changes the calculus for what's worth writing down —
+a half-formed idea becomes worth capturing if you know the system will tell you whether it
+compounded or faded.
+
+**Examples**:
+- \"*Distributed systems* was your most active concept cluster in Q3 and has been quiet since October.\"
+- \"*Agentic coding* has gone from occasional mention to your most-referenced concept this quarter.\"
+- \"*Rust* appeared in 12 notes over two years and then stopped entirely in August.\"
+
+**Depends on**: `get_stale_concepts`, `get_recent_concepts`, `search_by_concept` (all built),
+a time-windowed concept activity query helper (small addition to `semantic_queries.py`).
+Class B job.
+
+**Status**: Imagined. Requires a minor query helper addition; all other infrastructure exists.
+
+---
+
 ## Infrastructure Dependency Map
 
 ```
@@ -298,6 +373,9 @@ Milestone 7 jobs
   └── vault_hygiene_report    — close the loop, suggest improvements
 
 Future jobs (not yet planned)
+  ├── readwise_bridges        — bridge notes connecting new Readwise articles to vault
+  ├── morning_brief           — daily email: tasks + active concepts + recent highlights
+  ├── concept_evolution       — monthly report on how concepts have grown, faded, or emerged
   ├── targeted_learning       — toy code + exercises + problem sets for active topics
   ├── learning_aid            — spaced retrieval practice
   ├── idea_expander           — expand implicit items into drafts
